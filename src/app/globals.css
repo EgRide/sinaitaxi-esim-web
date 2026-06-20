@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --ring: rgba(30, 94, 255, 0.4);
+  }
+  html {
+    @apply scroll-smooth;
+  }
+  html, body {
+    @apply bg-white text-ink-900 antialiased font-sans;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: rgba(30, 94, 255, 0.2);
+  }
+}
+
+@layer components {
+  /* Pill button. Reused across hero + cards. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           bg-ink-900 px-6 py-3 text-sm font-semibold text-white
+           shadow-glow transition hover:bg-brand-900 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-ink-900
+           transition hover:border-ink-300 active:scale-[0.98];
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full
+           border border-ink-200 bg-white/80 px-3 py-1
+           text-xs font-medium text-ink-600 backdrop-blur;
+  }
+  /* Soft glassmorphism wrapper for cards on the hero gradient. */
+  .glass {
+    @apply rounded-3xl border border-white/15 bg-white/10 backdrop-blur-xl;
+  }
+}
+
+/* Hide scrollbars on horizontal scrollers (popular destinations). */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
