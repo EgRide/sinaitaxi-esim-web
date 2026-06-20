@@ -1,0 +1,10 @@
+# Cloudflare Pages config for sinaitaxi-esim-web.
+#
+# This file is read by Wrangler for local preview (`npm run preview`)
+# and by the CF Pages CI when it picks up the same `pages_build_output_dir`.
+# The `nodejs_compat` flag is required so Next.js server bundles can
+# use Node built-ins (Buffer, process.env, etc.) on Workers.
+name = "sinaitaxi-esim-web"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"

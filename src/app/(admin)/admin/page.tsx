@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 // Team dashboard overview. Server-rendered: pulls /v1/admin/stats
 // + /v1/admin/orders for the requested range and shows headline
 // tiles + a recent-orders preview. Range comes from `?range=`.

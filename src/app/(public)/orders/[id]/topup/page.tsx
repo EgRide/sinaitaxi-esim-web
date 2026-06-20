@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 // Top-up picker. Server-fetches the list of compatible top-up
 // packages for the order's eSIM and renders them as a selection.
 // The actual checkout (Stripe Elements + payment) lives in the
