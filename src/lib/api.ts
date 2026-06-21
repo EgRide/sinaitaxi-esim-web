@@ -151,13 +151,12 @@ const base = (): string => {
 const get = async <T,>(path: string): Promise<T> => {
   const res = await fetch(`${base()}${path}`, {
     headers: { 'Content-Type': 'application/json' },
-    // `cache: 'no-store'` instead of Next.js ISR `revalidate`.
-    // On Cloudflare Pages the ISR pipeline needs a Workers KV
-    // binding for the build's data cache — without that the
-    // edge function crashes on first request. The backend
-    // already caches the countries response for 30s so the
-    // round-trip remains cheap.
-    cache: 'no-store',
+    // No `cache` option — Cloudflare Workers' fetch() doesn't
+    // support `cache: 'no-store'` (throws "not implemented"),
+    // and Next.js ISR `revalidate` needs a Workers KV binding.
+    // The backend already caches the countries response for 30s
+    // and Workers has no built-in fetch cache anyway, so each
+    // edge request hits Railway fresh — fine for this volume.
   });
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
   const body = (await res.json()) as { data: T };
@@ -187,14 +186,12 @@ export const api = {
   order: async (id: string): Promise<OrderDetail> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}`, {
       headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`GET /v1/orders/${id} → ${res.status}`);
     return res.json() as Promise<OrderDetail>;
   },
   installInstructions: async (id: string, lang = 'en'): Promise<InstallInstructions | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}/install?lang=${lang}`, {
-      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${id}/install → ${res.status}`);
@@ -202,7 +199,6 @@ export const api = {
   },
   usage: async (id: string): Promise<UsageSnapshot | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}/usage`, {
-      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${id}/usage → ${res.status}`);
@@ -210,7 +206,6 @@ export const api = {
   },
   topupPackages: async (orderId: string): Promise<{ iccid: string; currency: string; data: TopupPackage[] } | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(orderId)}/topups`, {
-      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${orderId}/topups → ${res.status}`);
@@ -222,7 +217,6 @@ export const api = {
     get<CompatibleDevice[]>('/v1/compatible-devices'),
   topup: async (id: string): Promise<TopupDetail> => {
     const res = await fetch(`${base()}/v1/topups/${encodeURIComponent(id)}`, {
-      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`GET /v1/topups/${id} → ${res.status}`);
     return res.json() as Promise<TopupDetail>;
