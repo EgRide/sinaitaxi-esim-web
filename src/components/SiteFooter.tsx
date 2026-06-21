@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ShieldCheck, Globe2, Zap } from 'lucide-react';
+import { AppStoreBadges } from './AppStoreBadges';
 
 export const SiteFooter: React.FC = () => (
   <footer className="mt-32 bg-brand-950 text-ink-300">
@@ -17,6 +18,10 @@ export const SiteFooter: React.FC = () => (
             <Badge icon={<Zap className="h-3.5 w-3.5" />} label="Instant activation" />
             <Badge icon={<Globe2 className="h-3.5 w-3.5" />} label="200+ countries" />
             <Badge icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Stripe secured" />
+          </div>
+          <div className="mt-7">
+            <h3 className="text-white text-xs font-bold tracking-wide uppercase mb-3">Get the app</h3>
+            <AppStoreBadges />
           </div>
           <p className="mt-6 text-xs text-ink-400">
             Network partner:{' '}
