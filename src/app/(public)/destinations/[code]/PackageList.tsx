@@ -254,12 +254,12 @@ const PremiumCard: React.FC<{
       className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-amber-300/30 blur-3xl pointer-events-none"
     />
 
+    {/* Full-width "Most popular" ribbon at the top — sits above the
+        headline row so it never overlaps the price column. */}
     {isRecommended ? (
-      <div className="relative">
-        <div className="inline-flex items-center gap-1 absolute right-4 top-4 z-10 px-2.5 py-1 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-white text-[10px] font-bold uppercase tracking-wider shadow-soft">
-          <Crown className="h-3 w-3" />
-          Most popular
-        </div>
+      <div className="relative z-10 flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-700 text-white text-[10px] font-bold uppercase tracking-widest py-1.5">
+        <Crown className="h-3 w-3" />
+        Most popular
       </div>
     ) : null}
 
