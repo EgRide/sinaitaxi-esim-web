@@ -46,7 +46,7 @@ export const isCustomerSignedIn = async (): Promise<boolean> => {
 interface CustomerApiHistory {
   orders: Array<{
     id: string;
-    status: 'pending' | 'fulfilled' | 'fulfillment_failed';
+    status: 'pending' | 'fulfilled' | 'fulfillment_failed' | 'cancelled';
     email: string;
     quantity: number;
     currency: string;
@@ -67,7 +67,7 @@ interface CustomerApiHistory {
     id: string;
     parentOrderId: string;
     iccid: string;
-    status: 'pending' | 'fulfilled' | 'fulfillment_failed';
+    status: 'pending' | 'fulfilled' | 'fulfillment_failed' | 'cancelled';
     currency: string;
     retailPrice: number;
     fulfilledAt: string | null;

@@ -50,7 +50,12 @@ export interface CheckoutResponse {
 
 export interface OrderDetail {
   id: string;
-  status: 'pending' | 'fulfilled' | 'fulfillment_failed';
+  /**
+   * `cancelled` — set by the 59-min expiry sweep when the customer
+   * never completed payment. The Stripe PaymentIntent is voided at
+   * the same time so the card isn't held.
+   */
+  status: 'pending' | 'fulfilled' | 'fulfillment_failed' | 'cancelled';
   email: string;
   quantity: number;
   currency: string;
@@ -60,6 +65,10 @@ export interface OrderDetail {
    *  "Loading your eSIM…"). */
   createdAt: string;
   fulfilledAt: string | null;
+  /** When `status === 'pending'` and the PaymentIntent is still in
+   *  a payable state, this is the clientSecret Stripe Elements
+   *  needs to resume the checkout. Null in every other status. */
+  stripeClientSecret: string | null;
   package: CustomerPackage;
   airalo: unknown;
 }

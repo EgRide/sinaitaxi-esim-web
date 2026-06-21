@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Smartphone, ArrowRight, Clock, CheckCircle2, XCircle, Plus } from 'lucide-react';
+import { Smartphone, ArrowRight, Clock, CheckCircle2, XCircle, Ban, Plus } from 'lucide-react';
 import { fetchMyEsims } from '@/lib/customer-auth';
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Every eSIM and top-up you have purchased.',
 };
 
-type Status = 'pending' | 'fulfilled' | 'fulfillment_failed';
+type Status = 'pending' | 'fulfilled' | 'fulfillment_failed' | 'cancelled';
 
 export default async function MyEsimsPage() {
   const history = await fetchMyEsims();
@@ -117,9 +117,10 @@ export default async function MyEsimsPage() {
 
 const StatusBadge: React.FC<{ status: Status }> = ({ status }) => {
   const map = {
-    fulfilled:           { label: 'Active',  icon: <CheckCircle2 className="h-3 w-3" />, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    pending:             { label: 'Pending', icon: <Clock className="h-3 w-3" />,        cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-    fulfillment_failed:  { label: 'Failed',  icon: <XCircle className="h-3 w-3" />,      cls: 'bg-red-50 text-red-700 border-red-200' },
+    fulfilled:           { label: 'Active',    icon: <CheckCircle2 className="h-3 w-3" />, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    pending:             { label: 'Pending',   icon: <Clock className="h-3 w-3" />,        cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    fulfillment_failed:  { label: 'Failed',    icon: <XCircle className="h-3 w-3" />,      cls: 'bg-red-50 text-red-700 border-red-200' },
+    cancelled:           { label: 'Expired',   icon: <Ban className="h-3 w-3" />,          cls: 'bg-ink-50 text-ink-500 border-ink-200' },
   } as const;
   const m = map[status];
   return (

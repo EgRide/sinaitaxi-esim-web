@@ -1,12 +1,22 @@
 'use client';
 
 // Polls /v1/orders/:id every 3s until status leaves "pending".
-// Renders three layouts depending on status:
-//   • pending             — spinner + "Confirming payment…"
+// Renders five layouts depending on status:
+//   • pending (fresh)     — spinner + "Confirming payment…"
+//   • pending (>30min, has client secret) — Resume Payment with Stripe Elements
+//   • pending (>30min, no secret) — "Loading your eSIM…" history view
+//   • cancelled           — "This order expired" with CTA to start fresh
 //   • fulfilled           — QR + Airalo's localized install steps + usage
 //   • fulfillment_failed  — error panel with support contact
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
 import {
   Database,
   Clock,
@@ -19,9 +29,13 @@ import {
   Copy,
   CheckCircle2,
   Wifi,
+  XCircle,
+  RotateCcw,
+  Lock,
 } from 'lucide-react';
 import { api, type OrderDetail, type InstallInstructions, type UsageSnapshot, type DeviceInstructions } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { fmtPrice } from '@/lib/price';
 
 export const OrderPoller: React.FC<{ initial: OrderDetail }> = ({ initial }) => {
   const [order, setOrder] = useState(initial);
@@ -44,17 +58,25 @@ export const OrderPoller: React.FC<{ initial: OrderDetail }> = ({ initial }) => 
   }, [order.id, order.status]);
 
   if (order.status === 'fulfillment_failed') return <Failed order={order} />;
-  // Customers who land here from My eSIMs see a "Pending" status
-  // for the brief gap between webhook firing + DB row updating —
-  // showing "Confirming your payment…" then is misleading. We
-  // tell the two cases apart by order age: if the order was
-  // placed in the last 30 minutes the customer is still in
-  // active checkout, otherwise they're viewing history and we
-  // show a neutral loader.
+  if (order.status === 'cancelled') return <Expired order={order} />;
+  // Pending — three sub-states:
+  //   1. Fresh checkout (created within last 5 minutes): keep the
+  //      original "Confirming your payment…" copy, the webhook is
+  //      either about to fire or already fired and DB just hasn't
+  //      caught up.
+  //   2. Stale + still has a usable Stripe client secret: customer
+  //      bounced off the original payment page and came back via
+  //      My eSIMs. Render the Resume Payment surface so they can
+  //      finish without creating a duplicate order.
+  //   3. Stale + no client secret: in-flight processing race we
+  //      can't resume. Show the neutral "Loading your eSIM…" view
+  //      and keep polling — usually clears within a few seconds.
   if (order.status === 'pending') {
     const ageMs = Date.now() - Date.parse(order.createdAt ?? '');
-    const stale = Number.isFinite(ageMs) && ageMs > 30 * 60_000;
-    return stale ? <ResumingHistory /> : <Pending />;
+    const stale = Number.isFinite(ageMs) && ageMs > 5 * 60_000;
+    if (!stale) return <Pending />;
+    if (order.stripeClientSecret) return <ResumePayment order={order} clientSecret={order.stripeClientSecret} />;
+    return <ResumingHistory />;
   }
   return <Fulfilled order={order} />;
 };
@@ -99,6 +121,160 @@ const Failed: React.FC<{ order: OrderDetail }> = ({ order }) => (
     <p className="text-xs text-red-700 mt-3">Reference: {order.id}</p>
   </div>
 );
+
+// Shown when the 59-minute expiry sweep has flipped the order to
+// `cancelled` because the customer never finished paying. Stripe
+// has been told to cancel the PaymentIntent at the same time, so
+// the card isn't held. Customers can simply start a new order.
+const Expired: React.FC<{ order: OrderDetail }> = ({ order }) => (
+  <div className="rounded-3xl border border-ink-100 bg-white p-6 sm:p-8 text-center">
+    <div className="grid place-items-center w-14 h-14 rounded-2xl bg-ink-100 text-ink-500 mx-auto mb-4">
+      <XCircle className="h-7 w-7" />
+    </div>
+    <h1 className="text-2xl font-extrabold tracking-tight">This order expired</h1>
+    <p className="text-sm text-ink-600 mt-2 max-w-sm mx-auto leading-relaxed">
+      We couldn&apos;t complete the payment within the 60-minute hold window
+      so the order was cancelled automatically. No charge was made.
+    </p>
+    <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+      <Link href="/" className="btn-primary !text-sm">
+        Browse destinations
+      </Link>
+      <Link href="/account/esims" className="btn-secondary !text-sm">
+        Back to My eSIMs
+      </Link>
+    </div>
+    <p className="text-[11px] text-ink-400 mt-4">Reference: {order.id}</p>
+  </div>
+);
+
+// Lazy-init Stripe client. The same pattern as CheckoutForm — kept
+// local so this file remains self-contained.
+let _stripe: Promise<Stripe | null> | null = null;
+const stripePromise = (): Promise<Stripe | null> => {
+  if (_stripe) return _stripe;
+  const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (!key) { _stripe = Promise.resolve(null); return _stripe; }
+  _stripe = loadStripe(key);
+  return _stripe;
+};
+
+// Resume Payment — re-mounts Stripe Elements with the original
+// clientSecret so the customer can finish a checkout they
+// abandoned earlier. We re-use the same PaymentIntent so no new
+// order row is created, and the existing receipt_email + metadata
+// (orderId, packageId) stay attached so the webhook still fulfills
+// correctly when payment completes.
+const ResumePayment: React.FC<{ order: OrderDetail; clientSecret: string }> = ({
+  order,
+  clientSecret,
+}) => {
+  const options = useMemo(
+    () => ({
+      clientSecret,
+      appearance: {
+        theme: 'stripe' as const,
+        variables: { colorPrimary: '#1E5EFF', borderRadius: '12px' },
+      },
+    }),
+    [clientSecret],
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl bg-gradient-to-br from-amber-50 to-white border border-amber-200 p-5 sm:p-6">
+        <span className="text-xs font-bold uppercase tracking-widest text-amber-700">
+          Payment pending
+        </span>
+        <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight">
+          Finish your purchase
+        </h1>
+        <p className="text-sm text-ink-600 mt-2 leading-relaxed">
+          We saved your order. You have less than an hour from when
+          you started to complete payment — after that the order is
+          automatically cancelled. <strong>No charge has been made yet.</strong>
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-ink-100 font-semibold">
+            {order.package.data}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-ink-100 font-semibold">
+            {order.package.validity} days
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-ink-100 font-bold text-brand-700">
+            {fmtPrice(order.retailPrice, order.currency)}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-white border border-ink-100 shadow-soft p-5 sm:p-6">
+        <Elements stripe={stripePromise()} options={options}>
+          <ResumePaymentForm order={order} />
+        </Elements>
+      </div>
+
+      <p className="text-xs text-ink-500 text-center">
+        Want to start over? <Link href="/" className="font-semibold text-brand-700 hover:underline">Browse other plans</Link>
+      </p>
+    </div>
+  );
+};
+
+const ResumePaymentForm: React.FC<{ order: OrderDetail }> = ({ order }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setError(null);
+    setSubmitting(true);
+    const result = await stripe.confirmPayment({
+      elements,
+      // Land back on the same /orders/:id page; the poller will
+      // detect status===fulfilled within seconds and swap to the
+      // Fulfilled view automatically.
+      confirmParams: { return_url: `${window.location.origin}/orders/${order.id}` },
+      redirect: 'if_required',
+    });
+    setSubmitting(false);
+    if (result.error) {
+      setError(result.error.message ?? 'Payment failed.');
+      return;
+    }
+    // Force a refresh so the poller re-runs and we don't have to
+    // wait for the 3s interval.
+    window.location.reload();
+  };
+
+  return (
+    <form onSubmit={onPay} className="flex flex-col gap-4">
+      <PaymentElement />
+      {error ? (
+        <p className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={!stripe || submitting}
+        className={cn('btn-primary disabled:bg-ink-300')}>
+        {submitting ? (
+          'Processing…'
+        ) : (
+          <>
+            <Lock className="h-4 w-4" />
+            Pay {fmtPrice(order.retailPrice, order.currency)}
+          </>
+        )}
+      </button>
+      <p className="inline-flex items-center justify-center gap-1.5 text-xs text-ink-500">
+        <RotateCcw className="h-3 w-3" />
+        Same order — finishing this completes the original purchase
+      </p>
+    </form>
+  );
+};
 
 const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
   const [instructions, setInstructions] = useState<InstallInstructions | null>(null);

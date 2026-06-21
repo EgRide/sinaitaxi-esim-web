@@ -107,13 +107,11 @@ export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext }) => {
                 <LogIn className="h-4 w-4" />
                 Sign in to continue
               </Link>
-              <a
-                href="https://sinaitaxi.com/register"
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                href={`/login?mode=signup&next=${encodeURIComponent(loginNext)}`}
                 className="btn-secondary !py-2.5 !px-4 !text-sm">
                 Create an account
-              </a>
+              </Link>
             </div>
           </div>
         </div>
