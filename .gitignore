@@ -16,7 +16,5 @@ out
 *.swp
 *.swo
 
-# Vercel + Cloudflare Pages output (shared dir)
+# Vercel build output
 .vercel/
-.wrangler/
-worker-configuration.d.ts

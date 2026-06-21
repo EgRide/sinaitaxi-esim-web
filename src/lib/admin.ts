@@ -72,6 +72,8 @@ const adminFetch = async <T>(path: string): Promise<T | null> => {
   if (!t) return null;
   const res = await fetch(`${apiBase()}${path}`, {
     headers: { Authorization: `Bearer ${t}` },
+    // Admin data is always fresh — never cache between requests.
+    cache: 'no-store',
   });
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
@@ -101,6 +103,7 @@ export const adminPatch = async <T>(path: string, body: unknown): Promise<{ ok: 
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
     body: JSON.stringify(body),
+    cache: 'no-store',
   });
   if (!res.ok) {
     let msg = `PATCH ${path} → ${res.status}`;

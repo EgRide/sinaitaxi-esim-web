@@ -151,12 +151,11 @@ const base = (): string => {
 const get = async <T,>(path: string): Promise<T> => {
   const res = await fetch(`${base()}${path}`, {
     headers: { 'Content-Type': 'application/json' },
-    // No `cache` option — Cloudflare Workers' fetch() doesn't
-    // support `cache: 'no-store'` (throws "not implemented"),
-    // and Next.js ISR `revalidate` needs a Workers KV binding.
-    // The backend already caches the countries response for 30s
-    // and Workers has no built-in fetch cache anyway, so each
-    // edge request hits Railway fresh — fine for this volume.
+    // Vercel's data cache holds the response for 30s before
+    // re-fetching from Railway. Matches the backend's own
+    // /v1/countries cache TTL — admin /settings changes
+    // propagate to the public site within 30s.
+    next: { revalidate: 30 },
   });
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
   const body = (await res.json()) as { data: T };
@@ -183,15 +182,19 @@ export const api = {
     get<CustomerPackage[]>(`/v1/countries/${encodeURIComponent(code)}/packages`),
   checkout: (payload: { packageId: string; email: string; quantity?: number }) =>
     post<CheckoutResponse>('/v1/checkout', payload),
+  // Stale-sensitive endpoints — receipts poll until fulfilled,
+  // usage updates in real time, so we never cache them.
   order: async (id: string): Promise<OrderDetail> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}`, {
       headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`GET /v1/orders/${id} → ${res.status}`);
     return res.json() as Promise<OrderDetail>;
   },
   installInstructions: async (id: string, lang = 'en'): Promise<InstallInstructions | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}/install?lang=${lang}`, {
+      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${id}/install → ${res.status}`);
@@ -199,6 +202,7 @@ export const api = {
   },
   usage: async (id: string): Promise<UsageSnapshot | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(id)}/usage`, {
+      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${id}/usage → ${res.status}`);
@@ -206,6 +210,7 @@ export const api = {
   },
   topupPackages: async (orderId: string): Promise<{ iccid: string; currency: string; data: TopupPackage[] } | null> => {
     const res = await fetch(`${base()}/v1/orders/${encodeURIComponent(orderId)}/topups`, {
+      cache: 'no-store',
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET /v1/orders/${orderId}/topups → ${res.status}`);
@@ -217,6 +222,7 @@ export const api = {
     get<CompatibleDevice[]>('/v1/compatible-devices'),
   topup: async (id: string): Promise<TopupDetail> => {
     const res = await fetch(`${base()}/v1/topups/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`GET /v1/topups/${id} → ${res.status}`);
     return res.json() as Promise<TopupDetail>;

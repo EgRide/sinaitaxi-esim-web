@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Pricing settings — commission % + minimum commission floor.
 // Server-fetches current values, hands them to a client form
 // that uses a useActionState server action.

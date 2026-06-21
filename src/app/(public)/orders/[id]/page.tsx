@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Post-checkout — order status. Server-fetches once, then the
 // client component polls every 3s until the order moves out of
 // "pending" (Stripe webhook → Airalo order placement on the

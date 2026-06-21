@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Top-up receipt — polls /v1/topups/:id until status leaves
 // "pending". Mirrors the order receipt page but simpler since
 // there's no QR / install — the eSIM is already installed.

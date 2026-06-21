@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Country detail — package picker. Hero with the country's flag
 // and stats, filter bar by duration, and a polished list of
 // package cards. Inline checkout lives in CheckoutForm.

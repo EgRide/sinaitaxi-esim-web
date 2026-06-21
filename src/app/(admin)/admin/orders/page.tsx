@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Full orders table. Server-rendered; filters drive a new fetch
 // via search params, so the URL is shareable.
 import { redirect } from 'next/navigation';

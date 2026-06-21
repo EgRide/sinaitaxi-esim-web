@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Home — premium landing experience.
 // Sections (top → bottom):
 //   1. Hero with search bar + animated phone mockup
