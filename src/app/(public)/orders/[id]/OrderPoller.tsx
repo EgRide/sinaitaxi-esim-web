@@ -280,15 +280,21 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
   const [instructions, setInstructions] = useState<InstallInstructions | null>(null);
   const [usage, setUsage] = useState<UsageSnapshot | null>(null);
 
+  const fetchUsage = async () => {
+    try {
+      const next = await api.usage(order.id);
+      setUsage(next);
+    } catch { /* ignore — keep last good snapshot */ }
+  };
   useEffect(() => {
     // Fetch once on mount — instructions don't change.
     api.installInstructions(order.id).then(setInstructions).catch(() => {});
     // Usage refreshes on each tab focus + initial mount.
-    const fetchUsage = () => api.usage(order.id).then(setUsage).catch(() => {});
-    fetchUsage();
-    const onFocus = () => fetchUsage();
+    void fetchUsage();
+    const onFocus = () => { void fetchUsage(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id]);
 
   const iccid = instructions?.iccid ?? null;
@@ -322,7 +328,7 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
       </div>
 
       {/* Live usage card */}
-      {usage?.data?.data ? <UsageCard usage={usage} /> : null}
+      {usage?.data?.data ? <UsageCard usage={usage} onRefresh={fetchUsage} /> : null}
 
       {/* QR + install instructions */}
       <InstallCard instructions={instructions} />
@@ -351,12 +357,21 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
 };
 
 // ── Live usage ────────────────────────────────────────────────
-const UsageCard: React.FC<{ usage: UsageSnapshot }> = ({ usage }) => {
+const UsageCard: React.FC<{
+  usage: UsageSnapshot;
+  onRefresh: () => Promise<void> | void;
+}> = ({ usage, onRefresh }) => {
   const u = usage.data.data;
+  const [refreshing, setRefreshing] = useState(false);
   if (!u) return null;
   const usedMb = u.total - u.remaining;
   const pct = u.total > 0 ? Math.min(100, Math.round((usedMb / u.total) * 100)) : 0;
   const daysLeft = u.expired_at ? Math.max(0, Math.ceil((new Date(u.expired_at).getTime() - Date.now()) / 86400000)) : null;
+
+  const click = async () => {
+    setRefreshing(true);
+    try { await onRefresh(); } finally { setRefreshing(false); }
+  };
 
   return (
     <div className="rounded-3xl bg-white border border-ink-100 shadow-soft p-6">
@@ -367,14 +382,24 @@ const UsageCard: React.FC<{ usage: UsageSnapshot }> = ({ usage }) => {
           </span>
           <h2 className="font-bold tracking-tight">Live usage</h2>
         </div>
-        <span className={cn(
-          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border',
-          u.status === 'ACTIVE'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-            : 'bg-ink-50 border-ink-200 text-ink-600',
-        )}>
-          {u.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={click}
+            disabled={refreshing}
+            aria-label="Refresh usage"
+            className="grid place-items-center w-7 h-7 rounded-full hover:bg-ink-100 disabled:opacity-50 transition">
+            <RotateCcw className={cn('h-3.5 w-3.5 text-ink-500', refreshing && 'animate-spin')} />
+          </button>
+          <span className={cn(
+            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border',
+            u.status === 'ACTIVE'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-ink-50 border-ink-200 text-ink-600',
+          )}>
+            {u.status}
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
