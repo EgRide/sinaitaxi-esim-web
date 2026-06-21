@@ -59,24 +59,27 @@ export const OrderPoller: React.FC<{ initial: OrderDetail }> = ({ initial }) => 
 
   if (order.status === 'fulfillment_failed') return <Failed order={order} />;
   if (order.status === 'cancelled') return <Expired order={order} />;
-  // Pending — three sub-states:
-  //   1. Fresh checkout (created within last 5 minutes): keep the
-  //      original "Confirming your payment…" copy, the webhook is
-  //      either about to fire or already fired and DB just hasn't
-  //      caught up.
-  //   2. Stale + still has a usable Stripe client secret: customer
-  //      bounced off the original payment page and came back via
-  //      My eSIMs. Render the Resume Payment surface so they can
-  //      finish without creating a duplicate order.
-  //   3. Stale + no client secret: in-flight processing race we
-  //      can't resume. Show the neutral "Loading your eSIM…" view
-  //      and keep polling — usually clears within a few seconds.
+  // Pending — three sub-states keyed on what Stripe says about
+  // the PaymentIntent. We treat the client secret as the source
+  // of truth, not order age:
+  //   1. Stripe still hands us a clientSecret — the intent is in
+  //      a payable state. Render Resume Payment immediately,
+  //      regardless of order age. Whether the customer just came
+  //      from My eSIMs to finish an abandoned purchase or refreshed
+  //      mid-checkout, this is what they need to see.
+  //   2. No clientSecret, fresh order (<5 min) — payment likely
+  //      succeeded and the webhook is in flight. "Confirming your
+  //      payment…" is the right copy here.
+  //   3. No clientSecret, stale order — payment succeeded but
+  //      the webhook fulfilment got stuck. Show the neutral
+  //      "Loading your eSIM…" view and keep polling.
   if (order.status === 'pending') {
+    if (order.stripeClientSecret) {
+      return <ResumePayment order={order} clientSecret={order.stripeClientSecret} />;
+    }
     const ageMs = Date.now() - Date.parse(order.createdAt ?? '');
     const stale = Number.isFinite(ageMs) && ageMs > 5 * 60_000;
-    if (!stale) return <Pending />;
-    if (order.stripeClientSecret) return <ResumePayment order={order} clientSecret={order.stripeClientSecret} />;
-    return <ResumingHistory />;
+    return stale ? <ResumingHistory /> : <Pending />;
   }
   return <Fulfilled order={order} />;
 };

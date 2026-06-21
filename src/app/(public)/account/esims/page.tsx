@@ -50,7 +50,12 @@ export default async function MyEsimsPage() {
         data: o.package.data,
         validity: o.package.validity,
         createdAt: o.createdAt,
-        flag: o.package.countries?.[0]?.code ?? '🌍',
+        // Prefer the country the customer selected at checkout
+        // — regional / global packages list many countries but the
+        // shopper always navigated from one specific destination,
+        // and that's what we want the flag to show. Falls back to
+        // the package's first country (covers historical orders).
+        flag: o.selectedCountryCode ?? o.package.countries?.[0]?.code ?? '🌍',
         price: `${o.currency} ${o.retailPrice.toFixed(2)}`,
         topups: [],
       });

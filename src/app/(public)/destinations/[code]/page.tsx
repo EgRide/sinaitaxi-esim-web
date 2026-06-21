@@ -125,6 +125,7 @@ export default async function CountryPage({ params }: { params: Params }) {
           packages={packages}
           user={checkoutUser}
           loginNext={`/destinations/${code.toLowerCase()}`}
+          selectedCountryCode={upper}
         />
       </section>
     </>

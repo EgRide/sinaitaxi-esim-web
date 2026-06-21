@@ -33,6 +33,11 @@ interface Props {
   user: CheckoutUser | null;
   /** Path to come back to after login (`/destinations/[code]`). */
   loginNext: string;
+  /** ISO 3166 alpha-2 of the country page the customer is browsing.
+   *  Forwarded to /v1/checkout so the order remembers the chosen
+   *  destination — drives the flag rendered on My eSIMs even for
+   *  regional and global packages that span many countries. */
+  selectedCountryCode: string;
 }
 
 let _stripe: Promise<Stripe | null> | null = null;
@@ -44,7 +49,7 @@ const stripePromise = (): Promise<Stripe | null> => {
   return _stripe;
 };
 
-export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext }) => {
+export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext, selectedCountryCode }) => {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,6 +65,7 @@ export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext }) => {
         packageId: pkg.id,
         email: user.email,
         customerId: user.id,
+        selectedCountryCode,
       });
       setOrderId(res.orderId);
       setClientSecret(res.clientSecret);

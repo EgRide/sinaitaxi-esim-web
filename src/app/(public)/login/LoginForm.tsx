@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState } from 'react';
 import { Lock, Mail } from 'lucide-react';
 import { loginAction, type LoginState } from '@/lib/customer-actions';
@@ -31,9 +32,16 @@ export const LoginForm: React.FC<{ next: string }> = ({ next }) => {
       </label>
 
       <label className="block">
-        <span className="text-xs font-semibold uppercase tracking-wider text-ink-500">
-          Password
-        </span>
+        <div className="flex items-end justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-ink-500">
+            Password
+          </span>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-semibold text-brand-600 hover:text-brand-700 transition">
+            Forgot password?
+          </Link>
+        </div>
         <div className="mt-1.5 relative">
           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400" />
           <input

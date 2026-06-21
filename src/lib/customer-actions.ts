@@ -160,6 +160,80 @@ export const registerAction = async (
   redirect(next);
 };
 
+// ── Forgot password ──────────────────────────────────────────────
+//
+// Customer enters their email; we ask sinaitaxi PHP to send the
+// reset email. PHP returns success regardless of whether the
+// account exists (to avoid user enumeration), so we render the
+// same "Check your inbox" confirmation either way.
+
+export type ForgetPasswordState = { error?: string; sent?: boolean; email?: string };
+
+export const forgetPasswordAction = async (
+  _prev: ForgetPasswordState,
+  formData: FormData,
+): Promise<ForgetPasswordState> => {
+  const email = String(formData.get('email') ?? '').trim();
+  if (!email) return { error: 'Enter your email.' };
+
+  let res: Response;
+  try {
+    res = await fetch(`${customerApiBase()}/v1/customer/forget-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      cache: 'no-store',
+    });
+  } catch (err) {
+    return { error: `Could not reach the server: ${(err as Error).message}` };
+  }
+  if (res.status === 400) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    return { error: body.message ?? 'Please enter a valid email.' };
+  }
+  if (!res.ok) return { error: `Could not request reset (${res.status}).` };
+  return { sent: true, email };
+};
+
+// ── Reset password ───────────────────────────────────────────────
+//
+// Step 2 of the flow. Customer arrived from the email link with a
+// `?code=…` in the URL and chose a new password; we forward to
+// sinaitaxi /reset-password through the API proxy.
+
+export type ResetPasswordState = { error?: string; ok?: boolean };
+
+export const resetPasswordAction = async (
+  _prev: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> => {
+  const code = String(formData.get('code') ?? '').trim();
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+
+  if (!code) return { error: 'This reset link is missing its code. Please request a new one.' };
+  if (password.length < 8) return { error: 'Password must be at least 8 characters.' };
+  if (password !== confirm) return { error: 'Passwords do not match.' };
+
+  let res: Response;
+  try {
+    res = await fetch(`${customerApiBase()}/v1/customer/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password }),
+      cache: 'no-store',
+    });
+  } catch (err) {
+    return { error: `Could not reach the server: ${(err as Error).message}` };
+  }
+  if (res.status === 400) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    return { error: body.message ?? 'Please check the form and try again.' };
+  }
+  if (!res.ok) return { error: `Reset failed (${res.status}).` };
+  return { ok: true };
+};
+
 // ── Google sign-in ───────────────────────────────────────────────
 //
 // The Google flow is a server-side redirect handled by sinaitaxi

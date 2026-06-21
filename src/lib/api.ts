@@ -217,7 +217,7 @@ export const api = {
   countries: (): Promise<Country[]> => get<Country[]>('/v1/countries'),
   packages: (code: string): Promise<CustomerPackage[]> =>
     get<CustomerPackage[]>(`/v1/countries/${encodeURIComponent(code)}/packages`),
-  checkout: (payload: { packageId: string; email: string; quantity?: number; customerId?: string }) =>
+  checkout: (payload: { packageId: string; email: string; quantity?: number; customerId?: string; selectedCountryCode?: string }) =>
     post<CheckoutResponse>('/v1/checkout', payload),
   // Stale-sensitive endpoints — receipts poll until fulfilled,
   // usage updates in real time, so we never cache them.

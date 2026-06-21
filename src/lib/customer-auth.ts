@@ -51,6 +51,10 @@ interface CustomerApiHistory {
     quantity: number;
     currency: string;
     retailPrice: number;
+    /** ISO 3166 alpha-2 of the destination country the customer
+     *  selected at checkout. May be null on orders placed before
+     *  this column existed — fall back to package.countries[0]. */
+    selectedCountryCode: string | null;
     fulfilledAt: string | null;
     createdAt: string;
     package: {

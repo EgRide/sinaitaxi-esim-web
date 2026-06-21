@@ -37,12 +37,16 @@ interface Props {
   user: CheckoutUser | null;
   /** Where /login should send the user after sign-in. */
   loginNext: string;
+  /** ISO 3166 alpha-2 of the country the page belongs to.
+   *  Persisted on the order so My eSIMs renders the correct
+   *  destination flag. */
+  selectedCountryCode: string;
 }
 
 const isUnlimited = (p: CustomerPackage): boolean =>
   /unlim/i.test(p.data) || /unlim/i.test(p.title);
 
-export const PackageList: React.FC<Props> = ({ packages, user, loginNext }) => {
+export const PackageList: React.FC<Props> = ({ packages, user, loginNext, selectedCountryCode }) => {
   // Split into the two top-level buckets up front so the tab
   // counts stay accurate regardless of the duration filter.
   const { unlimited, standard } = useMemo(() => {
@@ -174,6 +178,7 @@ export const PackageList: React.FC<Props> = ({ packages, user, loginNext }) => {
                 onCheckCompat={openCompat}
                 user={user}
                 loginNext={loginNext}
+                selectedCountryCode={selectedCountryCode}
               />
             ) : (
               <StandardCard
@@ -185,6 +190,7 @@ export const PackageList: React.FC<Props> = ({ packages, user, loginNext }) => {
                 onCheckCompat={openCompat}
                 user={user}
                 loginNext={loginNext}
+                selectedCountryCode={selectedCountryCode}
               />
             )}
           </motion.li>
@@ -237,7 +243,8 @@ const PremiumCard: React.FC<{
   onCheckCompat: () => void;
   user: CheckoutUser | null;
   loginNext: string;
-}> = ({ pkg, isRecommended, open, onToggle, onCheckCompat, user, loginNext }) => (
+  selectedCountryCode: string;
+}> = ({ pkg, isRecommended, open, onToggle, onCheckCompat, user, loginNext, selectedCountryCode }) => (
   <div className={cn(
     'relative rounded-3xl overflow-hidden transition',
     open
@@ -342,7 +349,7 @@ const PremiumCard: React.FC<{
           <div className="border-t border-amber-200/60 px-5 sm:px-6 pb-6 pt-5 bg-white/50 backdrop-blur-sm">
             <PackageDetails pkg={pkg} />
             <div className="mt-5 pt-5 border-t border-amber-200/40">
-              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} />
+              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} selectedCountryCode={selectedCountryCode} />
             </div>
           </div>
         </motion.div>
@@ -361,7 +368,8 @@ const StandardCard: React.FC<{
   onCheckCompat: () => void;
   user: CheckoutUser | null;
   loginNext: string;
-}> = ({ pkg, isCheapest, isRecommended, open, onToggle, onCheckCompat, user, loginNext }) => (
+  selectedCountryCode: string;
+}> = ({ pkg, isCheapest, isRecommended, open, onToggle, onCheckCompat, user, loginNext, selectedCountryCode }) => (
   <div
     className={cn(
       'rounded-2xl border bg-white transition',
@@ -434,7 +442,7 @@ const StandardCard: React.FC<{
           <div className="border-t border-ink-100 px-5 pb-5 pt-4">
             <PackageDetails pkg={pkg} />
             <div className="mt-5 pt-5 border-t border-ink-100">
-              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} />
+              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} selectedCountryCode={selectedCountryCode} />
             </div>
           </div>
         </motion.div>
