@@ -151,9 +151,13 @@ const base = (): string => {
 const get = async <T,>(path: string): Promise<T> => {
   const res = await fetch(`${base()}${path}`, {
     headers: { 'Content-Type': 'application/json' },
-    // Short revalidate so pricing changes from /admin/settings
-    // show up across the public site within seconds.
-    next: { revalidate: 30 },
+    // `cache: 'no-store'` instead of Next.js ISR `revalidate`.
+    // On Cloudflare Pages the ISR pipeline needs a Workers KV
+    // binding for the build's data cache — without that the
+    // edge function crashes on first request. The backend
+    // already caches the countries response for 30s so the
+    // round-trip remains cheap.
+    cache: 'no-store',
   });
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
   const body = (await res.json()) as { data: T };
