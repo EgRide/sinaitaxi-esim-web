@@ -78,15 +78,30 @@ export const registerAction = async (
   const firstName = String(formData.get('firstName') ?? '').trim();
   const lastName = String(formData.get('lastName') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim();
+  const countryCode = String(formData.get('countryCode') ?? '').trim().toUpperCase();
+  const phoneCountryCode = String(formData.get('phoneCountryCode') ?? '').replace(/^\+/, '').trim();
   const phoneNumber = String(formData.get('phoneNumber') ?? '').trim();
-  const countryId = String(formData.get('countryId') ?? '').trim();
+  // When the "WhatsApp = phone" checkbox is on, the form doesn't
+  // render the WA inputs — we mirror them server-side instead.
+  const waSame = formData.get('whatsappSameAsPhone') === '1';
+  const whatsappCountryCode = waSame
+    ? phoneCountryCode
+    : String(formData.get('whatsappCountryCode') ?? '').replace(/^\+/, '').trim();
+  const whatsappNumber = waSame
+    ? phoneNumber
+    : String(formData.get('whatsappNumber') ?? '').trim();
   const password = String(formData.get('password') ?? '');
   const next = String(formData.get('next') ?? '/account');
 
   if (!firstName) return { error: 'Enter your first name.' };
   if (!lastName) return { error: 'Enter your last name.' };
   if (!email) return { error: 'Enter your email.' };
+  if (!countryCode || countryCode.length !== 2) return { error: 'Select your country.' };
+  if (!phoneCountryCode) return { error: 'Enter your phone country code.' };
   if (!phoneNumber) return { error: 'Enter your phone number.' };
+  if (!whatsappCountryCode || !whatsappNumber) {
+    return { error: 'Enter your WhatsApp number or tick "same as phone".' };
+  }
   if (password.length < 8) return { error: 'Password must be at least 8 characters.' };
 
   let res: Response;
@@ -98,9 +113,11 @@ export const registerAction = async (
         firstName,
         lastName,
         email,
+        countryCode,
+        phoneCountryCode,
         phoneNumber,
-        // Forward country only when the form collected it.
-        ...(countryId ? { countryId } : {}),
+        whatsappCountryCode,
+        whatsappNumber,
         password,
       }),
       cache: 'no-store',
@@ -145,48 +162,20 @@ export const registerAction = async (
 
 // ── Google sign-in ───────────────────────────────────────────────
 //
-// Called from the GSI button on /login. Receives Google's ID token,
-// forwards to our /v1/customer/google proxy (which verifies it
-// against Google's tokeninfo + relays to sinaitaxi PHP), then sets
-// the same cookies as login/register. We don't redirect from here
-// because the client-side button needs to call router.push itself
-// to keep the GSI iframe state clean — instead we return success
-// and let the client navigate.
-export type GoogleSignInState = { error?: string };
-
-export const googleSignInAction = async (
-  payload: { idToken: string; next: string },
-): Promise<GoogleSignInState> => {
-  if (!payload.idToken) return { error: 'Missing Google sign-in credential.' };
-
-  let res: Response;
-  try {
-    res = await fetch(`${customerApiBase()}/v1/customer/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: payload.idToken }),
-      cache: 'no-store',
-    });
-  } catch (err) {
-    return { error: `Could not reach the server: ${(err as Error).message}` };
-  }
-
-  if (res.status === 401) return { error: 'Google sign-in could not be verified.' };
-  if (res.status === 501) return { error: 'Google sign-in is not available yet — please use email + password.' };
-  if (!res.ok) return { error: `Sign in failed (${res.status}).` };
-
-  const body = (await res.json().catch(() => ({}))) as { token?: string; user?: unknown };
-  if (!body.token) return { error: 'Unexpected response from server.' };
-
-  const cookieStore = await cookies();
-  const cookieOpts = {
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 8,
-  };
-  cookieStore.set(CUSTOMER_TOKEN_COOKIE, body.token, cookieOpts);
-  cookieStore.set(CUSTOMER_USER_COOKIE, JSON.stringify(body.user ?? {}), cookieOpts);
-  return {};
-};
+// The Google flow is a server-side redirect handled by sinaitaxi
+// PHP:
+//   1. Web → GoogleSignInButton fetches /v1/customer/google/url
+//   2. API proxies sinaitaxi /auth/google/url → returns OAuth URL
+//   3. Browser is redirected to Google → user authenticates
+//   4. Google redirects back to PHP /auth/google/callback
+//   5. PHP exchanges the code and (planned) redirects the browser
+//      to a frontend URL with the session token in a query param
+//
+// Step 5 isn't fully wired yet — until PHP is configured to bounce
+// back to esim.sinaitaxi.com with the token, the GoogleSignInButton
+// hides itself behind NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED so the
+// surface stays clean.
+//
+// Once the redirect-with-token piece lands, the catcher page will
+// live at /login/google-complete and call a small server action
+// to persist the cookies — we'll add it here at that point.

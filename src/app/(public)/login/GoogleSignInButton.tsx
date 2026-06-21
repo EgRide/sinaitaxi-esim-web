@@ -1,116 +1,56 @@
 'use client';
 
-// Google Identity Services button (https://developers.google.com/identity/gsi/web).
-// Loaded straight off Google's CDN so we don't need an npm dep —
-// the script exposes window.google.accounts.id with prompt + button
-// helpers. Clicking the rendered button opens Google's One Tap UI;
-// once the user picks an account we get back an ID token, POST it
-// to /v1/customer/google, and on success redirect to `next`.
+// "Continue with Google" button. Uses the sinaitaxi PHP redirect
+// flow: we ask the eSIM API for the upstream URL (which proxies
+// PHP's /auth/google/url) and bounce the browser there. After
+// Google auth, PHP redirects to its /auth/google/callback which
+// processes the code and is expected to bounce back to a frontend
+// URL with the session token in a query param.
 //
-// Gated behind NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID — if the env var
-// is missing the button is hidden, so the surface stays clean
-// while the Google Cloud Console project is still being set up.
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { googleSignInAction, type GoogleSignInState } from '@/lib/customer-actions';
+// Until that final redirect-to-frontend step is wired on PHP we
+// hide the button by default. Set NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=1
+// on Vercel to opt in once the PHP team configures the redirect.
+import { useState } from 'react';
 
-interface GsiPromptNotification {
-  isDisplayed?: () => boolean;
-  isNotDisplayed?: () => boolean;
-  isSkippedMoment?: () => boolean;
-}
-
-interface GsiClient {
-  accounts: {
-    id: {
-      initialize: (cfg: {
-        client_id: string;
-        callback: (resp: { credential: string }) => void;
-        auto_select?: boolean;
-        cancel_on_tap_outside?: boolean;
-        use_fedcm_for_prompt?: boolean;
-      }) => void;
-      renderButton: (
-        el: HTMLElement,
-        options: { theme?: string; size?: string; width?: number; text?: string; shape?: string; logo_alignment?: string },
-      ) => void;
-      prompt: (cb?: (n: GsiPromptNotification) => void) => void;
-      disableAutoSelect: () => void;
-    };
-  };
-}
-declare global {
-  interface Window { google?: GsiClient }
-}
-
-const GSI_SRC = 'https://accounts.google.com/gsi/client';
+const ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === '1';
 
 export const GoogleSignInButton: React.FC<{ next: string }> = ({ next }) => {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID;
-  const router = useRouter();
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!clientId) return;
-    // Load the GSI script once per page lifetime. Re-entrancy is
-    // handled by Google's own loader — calling the source URL
-    // twice is a no-op after first load.
-    if (typeof window === 'undefined') return;
-    if (window.google?.accounts?.id) { setScriptReady(true); return; }
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
-    if (existing) {
-      existing.addEventListener('load', () => setScriptReady(true));
-      return;
+  if (!ENABLED) return null;
+
+  const onClick = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
+      const res = await fetch(`${base}/v1/customer/google/url`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const body = (await res.json()) as { url?: string };
+      if (!body.url) throw new Error('No Google URL returned');
+      // Remember where to send the user after the round-trip.
+      try {
+        sessionStorage.setItem('sinaitaxi:googleNext', next);
+      } catch { /* private mode — ignore */ }
+      window.location.href = body.url;
+    } catch (err) {
+      setBusy(false);
+      setError((err as Error).message);
     }
-    const s = document.createElement('script');
-    s.src = GSI_SRC;
-    s.async = true;
-    s.defer = true;
-    s.onload = () => setScriptReady(true);
-    s.onerror = () => setError('Could not load Google Sign-In');
-    document.head.appendChild(s);
-  }, [clientId]);
-
-  useEffect(() => {
-    if (!scriptReady || !clientId || !buttonRef.current || !window.google) return;
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (resp) => {
-        if (!resp.credential) return;
-        const result: GoogleSignInState = await googleSignInAction({ idToken: resp.credential, next });
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
-        // Server action already wrote the session cookies; just
-        // navigate the customer onward.
-        router.push(next);
-        router.refresh();
-      },
-      auto_select: false,
-      cancel_on_tap_outside: true,
-      use_fedcm_for_prompt: true,
-    });
-    // Render the official Google button — full width to match
-    // the rest of the form.
-    const width = Math.min(420, buttonRef.current.offsetWidth || 380);
-    window.google.accounts.id.renderButton(buttonRef.current, {
-      theme: 'outline',
-      size: 'large',
-      shape: 'pill',
-      width,
-      text: 'continue_with',
-      logo_alignment: 'left',
-    });
-  }, [scriptReady, clientId, next, router]);
-
-  if (!clientId) return null;
+  };
 
   return (
-    <div className="space-y-4 mb-4">
-      <div ref={buttonRef} className="flex justify-center" />
+    <div className="space-y-3 mb-4">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        className="w-full flex items-center justify-center gap-3 rounded-full bg-white border border-ink-200 hover:border-ink-400 disabled:opacity-60 px-4 py-3 text-sm font-semibold text-ink-900 transition shadow-sm"
+        aria-label="Continue with Google">
+        <GoogleGlyph />
+        {busy ? 'Redirecting…' : 'Continue with Google'}
+      </button>
       {error ? (
         <p className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
       ) : null}
@@ -122,3 +62,12 @@ export const GoogleSignInButton: React.FC<{ next: string }> = ({ next }) => {
     </div>
   );
 };
+
+const GoogleGlyph: React.FC = () => (
+  <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden>
+    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-11.3 8 12 12 0 1 1 8-21l5.7-5.6A20 20 0 1 0 44 24c0-1.2-.1-2.4-.4-3.5Z" />
+    <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8A12 12 0 0 1 24 12c3 0 5.7 1.2 7.8 3l5.7-5.6A20 20 0 0 0 6.3 14.7Z" />
+    <path fill="#4CAF50" d="M24 44a20 20 0 0 0 13.6-5.3l-6.3-5.3a12 12 0 0 1-17.7-6.4l-6.6 5A20 20 0 0 0 24 44Z" />
+    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3a12 12 0 0 1-4.1 5.4l6.3 5.3A19.8 19.8 0 0 0 44 24c0-1.2-.1-2.4-.4-3.5Z" />
+  </svg>
+);
