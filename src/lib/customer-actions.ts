@@ -195,11 +195,47 @@ export const forgetPasswordAction = async (
   return { sent: true, email };
 };
 
-// /reset-password lives on sinaitaxi.com — the link target in the
-// email PHP sends. We don't host a reset form on the eSIM domain
-// since we can't actually overwrite PHP's stored password without
-// a PHP-side endpoint. /forgot-password sets that expectation
-// before the customer ever clicks the link.
+// ── Reset password ───────────────────────────────────────────────
+//
+// Customer clicked the magic link from the password-reset email
+// (which lands on /reset-password?code=…), entered a new password,
+// and hit submit. We forward to the API which proxies sinaitaxi
+// PHP's /reset-password. PHP validates the code, hashes the new
+// password and stores it. We don't redirect — the success state
+// is rendered inline so the customer sees the confirmation right
+// where they completed the form.
+export type ResetPasswordState = { error?: string; ok?: boolean };
+
+export const resetPasswordAction = async (
+  _prev: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> => {
+  const code = String(formData.get('code') ?? '').trim();
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+
+  if (!code) return { error: 'This reset link is missing its code. Please request a new one.' };
+  if (password.length < 8) return { error: 'Password must be at least 8 characters.' };
+  if (password !== confirm) return { error: 'Passwords do not match.' };
+
+  let res: Response;
+  try {
+    res = await fetch(`${customerApiBase()}/v1/customer/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password }),
+      cache: 'no-store',
+    });
+  } catch (err) {
+    return { error: `Could not reach the server: ${(err as Error).message}` };
+  }
+  if (res.status === 400) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    return { error: body.message ?? 'Please check the form and try again.' };
+  }
+  if (!res.ok) return { error: `Reset failed (${res.status}).` };
+  return { ok: true };
+};
 
 // ── Google sign-in ───────────────────────────────────────────────
 //

@@ -36,28 +36,15 @@ export const ForgotPasswordForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Set expectations about the cross-domain link. Sinai Taxi
-            uses one account across the eSIM site, the rides
-            website, and the mobile app, so the reset page lives on
-            sinaitaxi.com. Mentioning it up-front prevents the
-            customer from worrying when the link in the email takes
-            them off-brand. */}
         <div className="rounded-2xl border border-ink-100 bg-white p-5 text-ink-700">
           <h3 className="text-sm font-bold text-ink-900 mb-1">What happens next</h3>
           <ol className="text-xs leading-relaxed space-y-1.5 list-decimal pl-4">
             <li>Click the link in the email we just sent you.</li>
-            <li>
-              You&apos;ll land on the Sinai Taxi reset page (at{' '}
-              <span className="font-mono text-ink-900">sinaitaxi.com</span>) — same account
-              you use here.
-            </li>
+            <li>You&apos;ll land on the reset page, right here.</li>
             <li>Choose a new password and confirm.</li>
             <li>
-              Come back to{' '}
-              <Link href="/login" className="font-semibold text-brand-600 hover:text-brand-700">
-                esim.sinaitaxi.com&nbsp;/&nbsp;sign in
-              </Link>{' '}
-              with the new password.
+              Sign in with the new password — works on both the eSIM
+              site and the Sinai Taxi mobile app.
             </li>
           </ol>
         </div>

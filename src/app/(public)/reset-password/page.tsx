@@ -1,14 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
-import { ForgotPasswordForm } from './ForgotPasswordForm';
+import { ResetPasswordForm } from './ResetPasswordForm';
 
 export const metadata: Metadata = {
-  title: 'Reset your password',
-  description: 'Get a link by email to reset your Sinai Taxi account password.',
+  title: 'Choose a new password',
+  description: 'Set a new password for your Sinai Taxi account.',
 };
 
-export default function ForgotPasswordPage() {
+// The reset email PHP sends embeds a magic link pointing here with
+// a `?code=` query string. We read it and hand it to the form as
+// a hidden input so it travels with the server-action submission.
+// If the query is missing (customer manually navigated here),
+// the form renders gracefully with a "request a new link" hint.
+type Params = Promise<{ code?: string; email?: string }>;
+
+export default async function ResetPasswordPage({ searchParams }: { searchParams: Params }) {
+  const sp = await searchParams;
+  const code = sp.code ?? '';
+
   return (
     <div className="min-h-screen bg-ink-50/40 grid place-items-center px-6 py-16">
       <div className="w-full max-w-md">
@@ -21,17 +31,18 @@ export default function ForgotPasswordPage() {
               <h1 className="font-extrabold tracking-tight text-lg leading-tight">
                 Sinai<span className="text-brand-500">Taxi</span> eSIM
               </h1>
-              <p className="text-xs text-ink-500 font-medium">Customer account</p>
+              <p className="text-xs text-ink-500 font-medium">Reset password</p>
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight mb-1">Forgot your password?</h2>
+          <h2 className="text-2xl font-bold tracking-tight mb-1">Choose a new password</h2>
           <p className="text-sm text-ink-500 mb-6">
-            Enter your account email and we&apos;ll send you a one-time
-            link to choose a new password.
+            Pick something at least 8 characters long. The new password
+            also works in the Sinai Taxi mobile app — same account on
+            both sides.
           </p>
 
-          <ForgotPasswordForm />
+          <ResetPasswordForm code={code} />
         </div>
 
         <p className="text-center text-xs text-ink-400 mt-4">
