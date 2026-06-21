@@ -7,9 +7,11 @@
 // processes the code and is expected to bounce back to a frontend
 // URL with the session token in a query param.
 //
-// Until that final redirect-to-frontend step is wired on PHP we
-// hide the button by default. Set NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=1
-// on Vercel to opt in once the PHP team configures the redirect.
+// DISABLED by default — set NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED=1
+// on Vercel ONLY after the PHP team has wired the post-callback
+// redirect to esim.sinaitaxi.com/login/google-complete. Until then
+// clicking the button would leave the user staring at a JSON
+// blob on the PHP host, so the button must stay hidden.
 import { useState } from 'react';
 
 const ENABLED = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === '1';
