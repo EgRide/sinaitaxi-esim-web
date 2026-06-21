@@ -4,14 +4,19 @@
 // countries with motion staggered on scroll. Filter chips above
 // the grid — click a region to narrow the list (purely
 // client-side, instant).
+//
+// Earlier we showed an "All" chip alongside the five continents.
+// The 200-row continent-mixed list was overwhelming the customer
+// without giving them a clearer path to a purchase, so we dropped
+// it — Europe is the default tab now since it accounts for the
+// majority of bookings.
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CountryCard } from '@/components/CountryCard';
 import type { Country } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-const REGIONS: { id: string; label: string; codes: string[] | 'all' }[] = [
-  { id: 'all',         label: 'All',          codes: 'all' },
+const REGIONS: { id: string; label: string; codes: string[] }[] = [
   { id: 'europe',      label: 'Europe',       codes: ['AL','AT','BA','BE','BG','BY','CH','CY','CZ','DE','DK','EE','ES','FI','FR','GB','GR','HR','HU','IE','IS','IT','LT','LU','LV','MD','ME','MK','MT','NL','NO','PL','PT','RO','RS','RU','SE','SI','SK','UA','VA','XK'] },
   { id: 'asia',        label: 'Asia',         codes: ['AF','AM','AZ','BD','BH','BN','BT','CN','GE','HK','ID','IL','IN','IQ','IR','JO','JP','KG','KH','KP','KR','KW','KZ','LA','LB','LK','MM','MN','MO','MV','MY','NP','OM','PH','PK','PS','QA','SA','SG','SY','TH','TJ','TL','TM','TR','TW','UZ','VN','YE'] },
   { id: 'americas',    label: 'Americas',     codes: ['AR','BB','BO','BR','BS','BZ','CA','CL','CO','CR','CU','DM','DO','EC','GD','GT','GY','HN','HT','JM','KN','KY','LC','MX','NI','PA','PE','PR','PY','SR','SV','TT','US','UY','VC','VE'] },
@@ -25,13 +30,11 @@ interface Props {
 }
 
 export const CountryGrid: React.FC<Props> = ({ countries, error }) => {
-  const [region, setRegion] = useState<string>('all');
+  const [region, setRegion] = useState<string>('europe');
 
   const filtered = useMemo(() => {
-    if (region === 'all') return countries;
-    const def = REGIONS.find(r => r.id === region);
-    if (!def || def.codes === 'all') return countries;
-    const set = new Set(def.codes);
+    const def = REGIONS.find(r => r.id === region) ?? REGIONS[0];
+    const set = new Set(def!.codes);
     return countries.filter(c => set.has(c.code));
   }, [region, countries]);
 
