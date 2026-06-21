@@ -31,6 +31,7 @@ export const SiteFooter: React.FC = () => (
             { label: 'All destinations', href: '/' },
             { label: 'How it works',    href: '/how-it-works' },
             { label: 'Why us',          href: '/why-us' },
+            { label: 'Install an eSIM', href: '/install-esim' },
           ]}
         />
         <FooterCol

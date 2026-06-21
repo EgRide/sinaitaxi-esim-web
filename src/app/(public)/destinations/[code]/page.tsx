@@ -2,14 +2,40 @@
 // and stats, filter bar by duration, and a polished list of
 // package cards. Inline checkout lives in CheckoutForm.
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Sparkles, ShieldCheck, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Flag } from '@/components/Flag';
 import { fmtPrice } from '@/lib/price';
+import { JsonLd, schemas } from '@/components/JsonLd';
+import { customerUser } from '@/lib/customer-auth';
 import { PackageList } from './PackageList';
 
 type Params = Promise<{ code: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { code } = await params;
+  const upper = code.toUpperCase();
+  const countryName = new Intl.DisplayNames(['en'], { type: 'region' }).of(upper) ?? upper;
+  let priceHint = '';
+  try {
+    const pkgs = await api.packages(upper);
+    if (pkgs.length > 0) {
+      const lowest = pkgs.reduce((m, p) => (p.retailPrice > 0 && p.retailPrice < m ? p.retailPrice : m), Infinity);
+      priceHint = ` Plans from €${lowest.toFixed(2)}.`;
+    }
+  } catch { /* fall back to generic copy */ }
+  const title = `${countryName} eSIM — Travel data plans from Sinai Taxi`;
+  const description = `Travel eSIM for ${countryName}. Instant activation, EUR pricing, no roaming charges.${priceHint} Pick a plan, scan a QR code, land already connected.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/destinations/${code.toLowerCase()}` },
+    openGraph: { title, description, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
 
 export default async function CountryPage({ params }: { params: Params }) {
   const { code } = await params;
@@ -26,9 +52,28 @@ export default async function CountryPage({ params }: { params: Params }) {
     Number.POSITIVE_INFINITY,
   );
   const cheapestCurrency = packages[0]?.currency ?? 'EUR';
+  const cheapestPkg = packages.reduce((c, p) => (p.retailPrice > 0 && p.retailPrice < c.retailPrice ? p : c), packages[0]!);
+  const customer = await customerUser();
+  const checkoutUser = customer?.id
+    ? { id: String(customer.id), email: customer.email, fullName: customer.fullName }
+    : null;
 
   return (
     <>
+      {/* Per-country structured data for rich snippets + AI citations */}
+      <JsonLd data={schemas.countryProduct({
+        countryCode: upper,
+        countryName,
+        packageCount: packages.length,
+        lowestEur: Number.isFinite(cheapest) ? cheapest : 5.92,
+        cheapestPackageData: cheapestPkg?.data,
+        cheapestPackageDays: cheapestPkg?.validity,
+      })} />
+      <JsonLd data={schemas.breadcrumbs([
+        { name: 'Home', url: 'https://esim.sinaitaxi.com/' },
+        { name: 'Destinations', url: 'https://esim.sinaitaxi.com/' },
+        { name: countryName, url: `https://esim.sinaitaxi.com/destinations/${code.toLowerCase()}` },
+      ])} />
       {/* Hero band */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800" />
@@ -76,7 +121,11 @@ export default async function CountryPage({ params }: { params: Params }) {
 
       {/* Packages */}
       <section className="relative -mt-8 mx-auto max-w-6xl px-6">
-        <PackageList packages={packages} />
+        <PackageList
+          packages={packages}
+          user={checkoutUser}
+          loginNext={`/destinations/${code.toLowerCase()}`}
+        />
       </section>
     </>
   );

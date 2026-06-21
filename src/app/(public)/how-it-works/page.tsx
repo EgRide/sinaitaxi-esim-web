@@ -5,16 +5,52 @@ import {
   Sparkles, Smartphone, Wifi, AlertTriangle,
 } from 'lucide-react';
 import { PageHero } from '@/components/PageHero';
+import { JsonLd, schemas } from '@/components/JsonLd';
 
 export const metadata: Metadata = {
   title: 'How it works · From booking to connected in 60 seconds',
   description:
     'Pick a country, choose a plan, pay with Stripe, scan one QR code — your phone connects to a local network the moment you land. No SIM swap, no roaming charges.',
+  alternates: { canonical: '/how-it-works' },
 };
+
+// Same FAQ content shown on the page — duplicated as data so we
+// can emit it both as visible HTML <details> and as schema.
+const FAQ_ITEMS = [
+  {
+    question: 'Can I keep my home number while using a travel eSIM?',
+    answer: 'Yes. Your home SIM stays active for calls and texts; the travel eSIM handles data. WhatsApp, iMessage and banking 2FA continue to work on your home number.',
+  },
+  {
+    question: 'What happens if I don’t use all my data?',
+    answer: 'Data does not roll over after the validity window ends. Pick a plan that matches your trip length and usage — most travellers find 5–10 GB plenty for a week of maps, social media and the occasional video call.',
+  },
+  {
+    question: 'Can I top up if I run out?',
+    answer: 'Yes. Open your order receipt, scroll to "Top up this eSIM", pick a refill plan and pay. The top-up attaches to the same eSIM with no reinstall.',
+  },
+  {
+    question: 'Do I need to remove the eSIM when I get home?',
+    answer: 'No. Switch it off in Settings — it stays installed silently. Next time you travel to the same country you can reuse it (if validity remains) or top it up. Modern phones can hold 8+ eSIM profiles.',
+  },
+  {
+    question: 'Why is Sinai Taxi cheaper than carrier roaming?',
+    answer: 'Roaming bundles are profit centres for your home carrier. We buy the same wholesale data Airalo negotiates directly with 600+ carriers worldwide and pass most of the saving on.',
+  },
+  {
+    question: 'Is my payment safe?',
+    answer: 'Yes. Stripe processes every payment with PCI-DSS Level 1 security. Sinai Taxi never sees or stores your card number — only Stripe does.',
+  },
+];
 
 export default function HowItWorksPage() {
   return (
     <>
+      <JsonLd data={schemas.faq(FAQ_ITEMS)} />
+      <JsonLd data={schemas.breadcrumbs([
+        { name: 'Home', url: 'https://esim.sinaitaxi.com/' },
+        { name: 'How it works', url: 'https://esim.sinaitaxi.com/how-it-works' },
+      ])} />
       <PageHero
         eyebrow="60 seconds, four taps"
         title="Travel data, the way it should be."

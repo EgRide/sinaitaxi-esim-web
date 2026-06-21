@@ -10,7 +10,12 @@ import { motion } from 'framer-motion';
 import { Globe2, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-export const Nav: React.FC = () => {
+interface NavProps {
+  /** Server-rendered auth slot — "Sign in" pill or account avatar. */
+  accountSlot?: React.ReactNode;
+}
+
+export const Nav: React.FC<NavProps> = ({ accountSlot }) => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -52,11 +57,7 @@ export const Nav: React.FC = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/"
-            className="hidden sm:inline-flex btn-secondary !py-2 !px-4 !text-xs">
-            <Globe2 className="h-4 w-4" /> Browse 200+
-          </Link>
+          {accountSlot}
           <button
             onClick={() => setOpen(v => !v)}
             className="md:hidden rounded-full bg-white border border-ink-200 h-9 w-9 grid place-items-center"
@@ -76,6 +77,8 @@ export const Nav: React.FC = () => {
             <li><Link href="/" onClick={() => setOpen(false)} className="block py-2">Destinations</Link></li>
             <li><Link href="/how-it-works" onClick={() => setOpen(false)} className="block py-2">How it works</Link></li>
             <li><Link href="/why-us" onClick={() => setOpen(false)} className="block py-2">Why us</Link></li>
+            <li><Link href="/install-esim" onClick={() => setOpen(false)} className="block py-2">Install an eSIM</Link></li>
+            <li><Link href="/account" onClick={() => setOpen(false)} className="block py-2">My account</Link></li>
             <li><a href="https://sinaitaxi.com" target="_blank" rel="noreferrer" className="block py-2">Sinai Taxi</a></li>
           </ul>
         </motion.div>

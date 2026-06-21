@@ -19,7 +19,7 @@ import {
 import type { CustomerPackage } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { fmtPrice } from '@/lib/price';
-import { CheckoutForm } from './CheckoutForm';
+import { CheckoutForm, type CheckoutUser } from './CheckoutForm';
 import { CompatibilityModal } from '@/components/CompatibilityModal';
 
 type Tab = 'unlimited' | 'standard';
@@ -33,12 +33,16 @@ const DURATION_BUCKETS: { id: string; label: string; min: number; max: number }[
 
 interface Props {
   packages: CustomerPackage[];
+  /** Signed-in customer (null = show login gate on checkout). */
+  user: CheckoutUser | null;
+  /** Where /login should send the user after sign-in. */
+  loginNext: string;
 }
 
 const isUnlimited = (p: CustomerPackage): boolean =>
   /unlim/i.test(p.data) || /unlim/i.test(p.title);
 
-export const PackageList: React.FC<Props> = ({ packages }) => {
+export const PackageList: React.FC<Props> = ({ packages, user, loginNext }) => {
   // Split into the two top-level buckets up front so the tab
   // counts stay accurate regardless of the duration filter.
   const { unlimited, standard } = useMemo(() => {
@@ -168,6 +172,8 @@ export const PackageList: React.FC<Props> = ({ packages }) => {
                 open={expanded === pkg.id}
                 onToggle={() => setExpanded(prev => (prev === pkg.id ? null : pkg.id))}
                 onCheckCompat={openCompat}
+                user={user}
+                loginNext={loginNext}
               />
             ) : (
               <StandardCard
@@ -177,6 +183,8 @@ export const PackageList: React.FC<Props> = ({ packages }) => {
                 open={expanded === pkg.id}
                 onToggle={() => setExpanded(prev => (prev === pkg.id ? null : pkg.id))}
                 onCheckCompat={openCompat}
+                user={user}
+                loginNext={loginNext}
               />
             )}
           </motion.li>
@@ -227,7 +235,9 @@ const PremiumCard: React.FC<{
   open: boolean;
   onToggle: () => void;
   onCheckCompat: () => void;
-}> = ({ pkg, isRecommended, open, onToggle, onCheckCompat }) => (
+  user: CheckoutUser | null;
+  loginNext: string;
+}> = ({ pkg, isRecommended, open, onToggle, onCheckCompat, user, loginNext }) => (
   <div className={cn(
     'relative rounded-3xl overflow-hidden transition',
     open
@@ -255,57 +265,66 @@ const PremiumCard: React.FC<{
 
     <button
       onClick={onToggle}
-      className="relative w-full flex items-center gap-4 p-5 sm:p-6 text-left">
-      {/* Crown badge / data */}
-      <div className="flex-shrink-0">
-        <div className="grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-soft mb-2">
-          <Crown className="h-6 w-6" />
+      className="relative w-full text-left p-4 sm:p-6">
+      {/* Top row on mobile: crown + price floats up. On desktop: 3-col layout. */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Crown */}
+        <div className="flex-shrink-0">
+          <div className="grid place-items-center w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-soft">
+            <Crown className="h-5 w-5 sm:h-6 sm:w-6" />
+          </div>
+          <div className="hidden sm:block text-center mt-2">
+            <div className="text-xs font-bold uppercase tracking-widest text-amber-700">
+              Unlimited
+            </div>
+          </div>
         </div>
-        <div className="text-center">
-          <div className="text-xs font-bold uppercase tracking-widest text-amber-700">
+
+        {/* Headline */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] sm:hidden font-bold uppercase tracking-widest text-amber-700">
             Unlimited
+          </div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-ink-900">
+              {pkg.validity}
+              <span className="text-sm sm:text-base text-ink-500 font-bold ml-1">days</span>
+            </span>
+            {pkg.operatorName ? (
+              <span className="text-[11px] sm:text-xs text-ink-500 font-semibold truncate">
+                · {pkg.operatorName}
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Price — right side, scales on mobile too */}
+        <div className="flex-shrink-0 text-right">
+          <div className="text-xl sm:text-4xl font-extrabold tracking-tighter bg-gradient-to-br from-amber-700 to-amber-900 bg-clip-text text-transparent leading-none">
+            {fmtPrice(pkg.retailPrice, pkg.currency)}
+          </div>
+          <div className="mt-1 inline-flex items-center gap-1 text-[10px] sm:text-xs text-amber-700 font-bold uppercase tracking-wider">
+            {open ? 'Hide' : 'Get this plan'}
+            <ChevronDown className={cn('h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform', open && 'rotate-180')} />
           </div>
         </div>
       </div>
 
-      {/* Middle */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-ink-900">
-            {pkg.validity}
-            <span className="text-base text-ink-500 font-bold ml-1">days</span>
-          </span>
-          {pkg.operatorName ? (
-            <span className="text-xs text-ink-500 font-semibold">· {pkg.operatorName}</span>
-          ) : null}
-        </div>
-
-        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-600">
-          <Feature icon={<Database className="h-3.5 w-3.5" />} label="Unlimited data" gold />
-          {pkg.isRoaming ? (
-            <Feature icon={<Globe className="h-3.5 w-3.5" />} label="Multi-carrier roaming" />
-          ) : null}
-          <Feature icon={<Zap className="h-3.5 w-3.5" />} label="Instant activation" />
-        </ul>
-
-        {pkg.hasFairUsagePolicy && pkg.fairUsagePolicy ? (
-          <p className="mt-2 inline-flex items-start gap-1.5 text-xs text-amber-800 bg-white/70 border border-amber-200 rounded-lg px-2 py-1 max-w-md">
-            <AlertTriangle className="h-3.5 w-3.5 mt-px flex-shrink-0" />
-            <span>{pkg.fairUsagePolicy}</span>
-          </p>
+      {/* Feature chips + fair-use — full width below the headline on every breakpoint */}
+      <ul className="mt-3 flex flex-wrap gap-1.5 sm:gap-x-3 sm:gap-y-1 text-[11px] sm:text-xs text-ink-600">
+        <Feature icon={<Database className="h-3 w-3 sm:h-3.5 sm:w-3.5" />} label="Unlimited data" gold />
+        {pkg.isRoaming ? (
+          <Feature icon={<Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" />} label="Multi-carrier" />
         ) : null}
-      </div>
+        <Feature icon={<Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5" />} label="Instant activation" />
+      </ul>
 
-      {/* Price + CTA */}
-      <div className="flex-shrink-0 text-right">
-        <div className="text-3xl sm:text-4xl font-extrabold tracking-tighter bg-gradient-to-br from-amber-700 to-amber-900 bg-clip-text text-transparent">
-          {fmtPrice(pkg.retailPrice, pkg.currency)}
-        </div>
-        <div className="mt-1 inline-flex items-center gap-1 text-xs text-amber-700 font-bold uppercase tracking-wider">
-          {open ? 'Hide' : 'Get this plan'}
-          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
-        </div>
-      </div>
+      {pkg.hasFairUsagePolicy && pkg.fairUsagePolicy ? (
+        <p className="mt-2 inline-flex items-start gap-1.5 text-[11px] sm:text-xs text-amber-800 bg-white/70 border border-amber-200 rounded-lg px-2 py-1 sm:max-w-md">
+          <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5 mt-px flex-shrink-0" />
+          <span>{pkg.fairUsagePolicy}</span>
+        </p>
+      ) : null}
     </button>
 
     {/* Compatibility check — under the headline, always visible */}
@@ -323,7 +342,7 @@ const PremiumCard: React.FC<{
           <div className="border-t border-amber-200/60 px-5 sm:px-6 pb-6 pt-5 bg-white/50 backdrop-blur-sm">
             <PackageDetails pkg={pkg} />
             <div className="mt-5 pt-5 border-t border-amber-200/40">
-              <CheckoutForm pkg={pkg} />
+              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} />
             </div>
           </div>
         </motion.div>
@@ -340,7 +359,9 @@ const StandardCard: React.FC<{
   open: boolean;
   onToggle: () => void;
   onCheckCompat: () => void;
-}> = ({ pkg, isCheapest, isRecommended, open, onToggle, onCheckCompat }) => (
+  user: CheckoutUser | null;
+  loginNext: string;
+}> = ({ pkg, isCheapest, isRecommended, open, onToggle, onCheckCompat, user, loginNext }) => (
   <div
     className={cn(
       'rounded-2xl border bg-white transition',
@@ -348,49 +369,53 @@ const StandardCard: React.FC<{
     )}>
     <button
       onClick={onToggle}
-      className="w-full flex items-center gap-4 p-5 text-left">
-      <div className="flex-shrink-0">
-        <div className="text-2xl sm:text-3xl font-extrabold tracking-tightest text-ink-900">
-          {pkg.data}
+      className="w-full text-left p-4 sm:p-5">
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Data — compact on mobile */}
+        <div className="flex-shrink-0">
+          <div className="text-xl sm:text-3xl font-extrabold tracking-tightest text-ink-900 leading-none">
+            {pkg.data}
+          </div>
+          <div className="text-[10px] sm:text-xs text-ink-500 mt-0.5">{pkg.validity} days</div>
         </div>
-        <div className="text-xs text-ink-500 mt-0.5">{pkg.validity} days</div>
-      </div>
 
-      <div className="flex-1 min-w-0 ml-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {isCheapest ? (
-            <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-              Best value
-            </span>
-          ) : null}
-          {isRecommended && !isCheapest ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-              <Sparkles className="h-3 w-3" />
-              Most data
-            </span>
-          ) : null}
-          <span className="text-xs text-ink-500 capitalize">{pkg.type}</span>
+        {/* Middle — badges + carrier + bullets */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {isCheapest ? (
+              <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 sm:px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                Best value
+              </span>
+            ) : null}
+            {isRecommended && !isCheapest ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 px-1.5 sm:px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                <Sparkles className="h-3 w-3" />
+                Most data
+              </span>
+            ) : null}
+            <span className="hidden sm:inline text-xs text-ink-500 capitalize">{pkg.type}</span>
+          </div>
+          <p className="mt-1 text-xs sm:text-sm text-ink-500 line-clamp-2">
+            {pkg.operatorName ? <span className="font-semibold text-ink-700">{pkg.operatorName}</span> : null}
+            {pkg.operatorName && (pkg.shortInfo || pkg.title) ? ' · ' : null}
+            {pkg.shortInfo ?? pkg.title}
+          </p>
+          <ul className="mt-1.5 hidden sm:flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
+            <li className="inline-flex items-center gap-1"><Database className="h-3.5 w-3.5" /> {pkg.data}</li>
+            <li className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {pkg.validity} days</li>
+            {pkg.voice ? <li className="inline-flex items-center gap-1"><Mic className="h-3.5 w-3.5" /> {pkg.voice} min</li> : null}
+            {pkg.text  ? <li className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {pkg.text} sms</li> : null}
+          </ul>
         </div>
-        <p className="mt-1 text-sm text-ink-500">
-          {pkg.operatorName ? <span className="font-semibold text-ink-700">{pkg.operatorName}</span> : null}
-          {pkg.operatorName && (pkg.shortInfo || pkg.title) ? ' · ' : null}
-          {pkg.shortInfo ?? pkg.title}
-        </p>
-        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
-          <li className="inline-flex items-center gap-1"><Database className="h-3.5 w-3.5" /> {pkg.data}</li>
-          <li className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {pkg.validity} days</li>
-          {pkg.voice ? <li className="inline-flex items-center gap-1"><Mic className="h-3.5 w-3.5" /> {pkg.voice} min</li> : null}
-          {pkg.text  ? <li className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {pkg.text} sms</li> : null}
-        </ul>
-      </div>
 
-      <div className="flex-shrink-0 text-right">
-        <div className="text-2xl font-extrabold tracking-tighter">
-          {fmtPrice(pkg.retailPrice, pkg.currency)}
-        </div>
-        <div className="mt-1 inline-flex items-center gap-1 text-xs text-brand-500 font-semibold">
-          {open ? 'Hide' : 'Select'}
-          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+        <div className="flex-shrink-0 text-right">
+          <div className="text-lg sm:text-2xl font-extrabold tracking-tighter leading-none">
+            {fmtPrice(pkg.retailPrice, pkg.currency)}
+          </div>
+          <div className="mt-1 inline-flex items-center gap-1 text-[10px] sm:text-xs text-brand-500 font-semibold">
+            {open ? 'Hide' : 'Select'}
+            <ChevronDown className={cn('h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform', open && 'rotate-180')} />
+          </div>
         </div>
       </div>
     </button>
@@ -409,7 +434,7 @@ const StandardCard: React.FC<{
           <div className="border-t border-ink-100 px-5 pb-5 pt-4">
             <PackageDetails pkg={pkg} />
             <div className="mt-5 pt-5 border-t border-ink-100">
-              <CheckoutForm pkg={pkg} />
+              <CheckoutForm pkg={pkg} user={user} loginNext={loginNext} />
             </div>
           </div>
         </motion.div>
