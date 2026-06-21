@@ -27,8 +27,11 @@ export default function ForgotPasswordPage() {
 
           <h2 className="text-2xl font-bold tracking-tight mb-1">Forgot your password?</h2>
           <p className="text-sm text-ink-500 mb-6">
-            Enter your account email and we&apos;ll send you a link to
-            choose a new password. The link is good for one use only.
+            Enter your account email and we&apos;ll send you a one-time
+            link to choose a new password. The link opens the reset
+            page on{' '}
+            <span className="font-semibold text-ink-700">sinaitaxi.com</span>{' '}
+            — same account works on both sites.
           </p>
 
           <ForgotPasswordForm />

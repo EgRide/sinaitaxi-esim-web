@@ -195,44 +195,11 @@ export const forgetPasswordAction = async (
   return { sent: true, email };
 };
 
-// ── Reset password ───────────────────────────────────────────────
-//
-// Step 2 of the flow. Customer arrived from the email link with a
-// `?code=…` in the URL and chose a new password; we forward to
-// sinaitaxi /reset-password through the API proxy.
-
-export type ResetPasswordState = { error?: string; ok?: boolean };
-
-export const resetPasswordAction = async (
-  _prev: ResetPasswordState,
-  formData: FormData,
-): Promise<ResetPasswordState> => {
-  const code = String(formData.get('code') ?? '').trim();
-  const password = String(formData.get('password') ?? '');
-  const confirm = String(formData.get('confirm') ?? '');
-
-  if (!code) return { error: 'This reset link is missing its code. Please request a new one.' };
-  if (password.length < 8) return { error: 'Password must be at least 8 characters.' };
-  if (password !== confirm) return { error: 'Passwords do not match.' };
-
-  let res: Response;
-  try {
-    res = await fetch(`${customerApiBase()}/v1/customer/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, password }),
-      cache: 'no-store',
-    });
-  } catch (err) {
-    return { error: `Could not reach the server: ${(err as Error).message}` };
-  }
-  if (res.status === 400) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    return { error: body.message ?? 'Please check the form and try again.' };
-  }
-  if (!res.ok) return { error: `Reset failed (${res.status}).` };
-  return { ok: true };
-};
+// /reset-password lives on sinaitaxi.com — the link target in the
+// email PHP sends. We don't host a reset form on the eSIM domain
+// since we can't actually overwrite PHP's stored password without
+// a PHP-side endpoint. /forgot-password sets that expectation
+// before the customer ever clicks the link.
 
 // ── Google sign-in ───────────────────────────────────────────────
 //
