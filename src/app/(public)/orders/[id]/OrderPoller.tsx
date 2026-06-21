@@ -15,6 +15,10 @@ import {
   Settings,
   Activity,
   ArrowRight,
+  Apple,
+  Copy,
+  CheckCircle2,
+  Wifi,
 } from 'lucide-react';
 import { api, type OrderDetail, type InstallInstructions, type UsageSnapshot, type DeviceInstructions } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -39,8 +43,19 @@ export const OrderPoller: React.FC<{ initial: OrderDetail }> = ({ initial }) => 
     return () => { cancelled = true; clearInterval(id); };
   }, [order.id, order.status]);
 
-  if (order.status === 'pending') return <Pending />;
   if (order.status === 'fulfillment_failed') return <Failed order={order} />;
+  // Customers who land here from My eSIMs see a "Pending" status
+  // for the brief gap between webhook firing + DB row updating —
+  // showing "Confirming your payment…" then is misleading. We
+  // tell the two cases apart by order age: if the order was
+  // placed in the last 30 minutes the customer is still in
+  // active checkout, otherwise they're viewing history and we
+  // show a neutral loader.
+  if (order.status === 'pending') {
+    const ageMs = Date.now() - Date.parse(order.createdAt ?? '');
+    const stale = Number.isFinite(ageMs) && ageMs > 30 * 60_000;
+    return stale ? <ResumingHistory /> : <Pending />;
+  }
   return <Fulfilled order={order} />;
 };
 
@@ -52,6 +67,22 @@ const Pending = () => (
       Your eSIM will appear here in a few seconds. You can leave
       this page open — we'll also email the QR code as soon as
       it's ready.
+    </p>
+  </div>
+);
+
+// Shown when the customer revisits a `pending` order from the
+// My eSIMs history list. The original Pending copy ("Confirming
+// your payment…") is misleading days after checkout, so we make
+// it clear they can still complete the payment without scaring
+// them about a duplicate charge.
+const ResumingHistory = () => (
+  <div className="flex flex-col items-center gap-4 py-16">
+    <div className="animate-spin h-10 w-10 rounded-full border-4 border-brand-500 border-t-transparent" />
+    <h1 className="text-xl font-bold">Loading your eSIM…</h1>
+    <p className="text-sm text-ink-600 text-center max-w-sm">
+      If this purchase didn&apos;t complete earlier, you&apos;ll be able to
+      resume payment in a moment. No charge has been made twice.
     </p>
   </div>
 );
@@ -70,7 +101,6 @@ const Failed: React.FC<{ order: OrderDetail }> = ({ order }) => (
 );
 
 const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
-  const sim = extractSims(order.airalo)[0];
   const [instructions, setInstructions] = useState<InstallInstructions | null>(null);
   const [usage, setUsage] = useState<UsageSnapshot | null>(null);
 
@@ -84,6 +114,8 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [order.id]);
+
+  const iccid = instructions?.iccid ?? null;
 
   return (
     <div className="space-y-6">
@@ -105,9 +137,9 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
             <Clock className="h-3.5 w-3.5 text-ink-500" />
             {order.package.validity} days
           </span>
-          {sim?.iccid ? (
+          {iccid ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-ink-100 font-mono text-[11px] text-ink-500">
-              ICCID {sim.iccid.slice(-10)}
+              ICCID {iccid.slice(-10)}
             </span>
           ) : null}
         </div>
@@ -117,10 +149,10 @@ const Fulfilled: React.FC<{ order: OrderDetail }> = ({ order }) => {
       {usage?.data?.data ? <UsageCard usage={usage} /> : null}
 
       {/* QR + install instructions */}
-      <InstallCard order={order} sim={sim} instructions={instructions} />
+      <InstallCard instructions={instructions} />
 
       {/* Top-up CTA */}
-      {sim?.iccid ? (
+      {iccid ? (
         <Link
           href={`/orders/${order.id}/topup`}
           className="block rounded-3xl bg-ink-900 text-white p-5 hover:bg-ink-800 transition group">
@@ -204,36 +236,70 @@ const UsageCard: React.FC<{ usage: UsageSnapshot }> = ({ usage }) => {
 };
 
 // ── QR + steps ────────────────────────────────────────────────
-const InstallCard: React.FC<{
-  order: OrderDetail;
-  sim: Sim | undefined;
-  instructions: InstallInstructions | null;
-}> = ({ sim, instructions }) => {
-  const inst = instructions?.data?.data?.instructions;
-  const [platform, setPlatform] = useState<'ios' | 'android'>(() => detectPlatform());
-  const devices: DeviceInstructions[] = inst ? inst[platform] : [];
-  const device = devices[0];
-  const [method, setMethod] = useState<'qr' | 'manual' | 'apn'>('qr');
+//
+// Drives the three-method install flow (QR, manual, network setup)
+// for the two platforms (iPhone, Android). Source of truth:
+//   • QR image — server-rendered base64 PNG from the LPA activation
+//     code, with `qrCodeUrl` (Airalo CDN) as a fallback.
+//   • Apple universal link — iOS 17.4+ one-tap install. We only show
+//     it on the iPhone tab; tapping skips the QR + manual steps.
+//   • Step lists — Airalo's localised payload, keyed by platform +
+//     method. If Airalo's payload is missing (instructions === null
+//     because their API was unreachable when we tried) we fall back
+//     to platform-specific generic steps so the user still has a
+//     path to activate.
+type Method = 'qr' | 'manual' | 'apn';
+type Platform = 'ios' | 'android';
 
-  const qrUrl = sim?.qrcode_url ?? device?.installation_via_qr_code?.qr_code_url;
+const METHODS: Array<{ key: Method; label: string; icon: React.ReactNode }> = [
+  { key: 'qr', label: 'QR install', icon: <QrCode className="h-3.5 w-3.5" /> },
+  { key: 'manual', label: 'Manual', icon: <Settings className="h-3.5 w-3.5" /> },
+  { key: 'apn', label: 'Network setup', icon: <Wifi className="h-3.5 w-3.5" /> },
+];
+
+const InstallCard: React.FC<{ instructions: InstallInstructions | null }> = ({ instructions }) => {
+  const [platform, setPlatform] = useState<Platform>(() => detectPlatform());
+  const [method, setMethod] = useState<Method>('qr');
+
+  // Pull device steps from Airalo's payload. Airalo returns an array
+  // per platform; the first entry is the canonical set for the
+  // operator. If it's missing we fall back to FallbackSteps below.
+  const airaloPayload = instructions?.instructions?.data?.instructions;
+  const devices: DeviceInstructions[] = airaloPayload ? airaloPayload[platform] ?? [] : [];
+  const device = devices[0];
+  const steps = device ? stepsFor(device, method) : undefined;
+
+  // Activation code displayed on the manual + QR cards. Prefer the
+  // structured Airalo field if present, else the LPA string we
+  // built server-side from sm-dp+ + matching id.
+  const activationCode =
+    device?.installation_via_qr_code?.smdp_address_and_activation_code ??
+    instructions?.lpa ??
+    null;
+
+  const qrSrc = instructions?.qrCode ?? instructions?.qrCodeUrl ?? null;
 
   return (
-    <div className="rounded-3xl bg-white border border-ink-100 shadow-soft p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-3xl bg-white border border-ink-100 shadow-soft p-5 sm:p-6">
+      {/* Header — section title + iPhone/Android pill */}
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div className="flex items-center gap-2">
           <span className="grid place-items-center w-9 h-9 rounded-2xl bg-brand-50 text-brand-700">
             <Smartphone className="h-4.5 w-4.5" />
           </span>
-          <h2 className="font-bold tracking-tight">Install your eSIM</h2>
+          <h2 className="font-bold tracking-tight text-lg">Install your eSIM</h2>
         </div>
-        <div className="inline-flex bg-ink-100 rounded-full p-1">
+        <div role="tablist" aria-label="Platform" className="inline-flex bg-ink-100 rounded-full p-1">
           {(['ios', 'android'] as const).map(p => (
             <button
               key={p}
+              type="button"
+              role="tab"
+              aria-selected={platform === p}
               onClick={() => setPlatform(p)}
               className={cn(
-                'px-3.5 py-1 text-xs font-semibold rounded-full transition',
-                platform === p ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500',
+                'px-4 py-1.5 text-xs font-semibold rounded-full transition',
+                platform === p ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-900',
               )}>
               {p === 'ios' ? 'iPhone' : 'Android'}
             </button>
@@ -241,68 +307,143 @@ const InstallCard: React.FC<{
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[280px_1fr] gap-6">
-        {/* QR */}
-        <div className="rounded-2xl bg-ink-50 border border-ink-100 p-5 flex flex-col items-center">
-          {qrUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qrUrl} alt="eSIM QR code" className="w-44 h-44 object-contain rounded-xl bg-white p-2" />
-          ) : (
-            <div className="w-44 h-44 grid place-items-center text-xs text-ink-500 bg-white rounded-xl">
-              QR unavailable
-            </div>
-          )}
-          <p className="text-xs text-ink-600 mt-3 text-center">
-            Scan with your phone's <strong>camera</strong> while the device is connected to Wi-Fi.
-          </p>
-          {device?.installation_via_qr_code?.smdp_address_and_activation_code ? (
-            <details className="mt-3 w-full text-xs">
-              <summary className="cursor-pointer text-ink-500 hover:text-ink-900">
-                Show activation code
-              </summary>
-              <code className="block mt-2 break-all rounded-lg bg-white border border-ink-100 px-3 py-2 font-mono text-[11px]">
-                {device.installation_via_qr_code.smdp_address_and_activation_code}
-              </code>
-            </details>
+      <div className="grid lg:grid-cols-[300px_1fr] gap-5 sm:gap-6">
+        {/* Left column — QR + activation code + iOS one-tap */}
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-ink-50 border border-ink-100 p-4 flex flex-col items-center">
+            {qrSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrSrc}
+                alt="eSIM QR code"
+                className="w-52 h-52 object-contain rounded-xl bg-white p-2"
+              />
+            ) : (
+              <div className="w-52 h-52 grid place-items-center text-xs text-ink-500 bg-white rounded-xl">
+                QR unavailable
+              </div>
+            )}
+            <p className="text-xs text-ink-600 mt-3 text-center leading-relaxed">
+              Scan with your phone&apos;s <strong>camera</strong>, then follow the prompt.
+              Make sure the device is on <strong>Wi-Fi</strong> first.
+            </p>
+          </div>
+
+          {/* iOS 17.4+ one-tap install — only renders on iPhone tab */}
+          {platform === 'ios' && instructions?.appleInstallUrl ? (
+            <a
+              href={instructions.appleInstallUrl}
+              className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-ink-900 text-white text-sm font-semibold hover:bg-ink-800 transition">
+              <span className="flex items-center gap-2">
+                <Apple className="h-4 w-4" />
+                Install on this iPhone
+              </span>
+              <ArrowRight className="h-4 w-4" />
+            </a>
           ) : null}
+
+          {/* Activation code — collapsible so the QR stays the hero */}
+          {activationCode ? <ActivationCode code={activationCode} /> : null}
         </div>
 
-        {/* Steps */}
+        {/* Right column — method tabs + steps */}
         <div>
-          <div className="inline-flex gap-1.5 mb-4">
-            {[
-              { key: 'qr', label: 'QR install', icon: <QrCode className="h-3.5 w-3.5" /> },
-              { key: 'manual', label: 'Manual', icon: <Settings className="h-3.5 w-3.5" /> },
-              { key: 'apn', label: 'Network setup', icon: <Activity className="h-3.5 w-3.5" /> },
-            ].map(t => (
+          <div role="tablist" aria-label="Install method" className="flex flex-wrap gap-1.5 mb-4">
+            {METHODS.map(t => (
               <button
                 key={t.key}
-                onClick={() => setMethod(t.key as 'qr' | 'manual' | 'apn')}
+                type="button"
+                role="tab"
+                aria-selected={method === t.key}
+                onClick={() => setMethod(t.key)}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition',
                   method === t.key
-                    ? 'bg-ink-900 text-white border-ink-900'
-                    : 'bg-white text-ink-600 border-ink-200 hover:border-ink-400',
+                    ? 'bg-ink-900 text-white border-ink-900 shadow-sm'
+                    : 'bg-white text-ink-600 border-ink-200 hover:border-ink-400 hover:text-ink-900',
                 )}>
-                {t.icon}{t.label}
+                {t.icon}
+                {t.label}
               </button>
             ))}
           </div>
 
-          {device ? (
-            <StepsList steps={stepsFor(device, method)} />
+          {steps && Object.keys(steps).length > 0 ? (
+            <StepsList steps={steps} />
           ) : (
-            <FallbackSteps />
+            <FallbackSteps platform={platform} method={method} />
           )}
+
+          {/* APN extras — when on Network setup, render the carrier's
+              APN value so users can copy/paste into Settings. */}
+          {method === 'apn' && device?.network_setup?.apn_value ? (
+            <div className="mt-4 rounded-2xl bg-brand-50 border border-brand-100 p-4">
+              <div className="text-[11px] uppercase tracking-widest font-bold text-brand-700">APN</div>
+              <code className="block mt-1 font-mono text-sm text-ink-900 break-all">
+                {device.network_setup.apn_value}
+              </code>
+              {device.network_setup.apn_type ? (
+                <div className="text-xs text-ink-600 mt-1">
+                  Type: <span className="font-semibold">{device.network_setup.apn_type}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 };
 
-const StepsList: React.FC<{ steps: Record<string, string> | undefined }> = ({ steps }) => {
-  const entries = steps ? Object.entries(steps).sort(([a], [b]) => Number(a) - Number(b)) : [];
-  if (entries.length === 0) return <FallbackSteps />;
+// Activation code panel — collapsible, with a one-tap copy button.
+// Used for both the LPA string (QR install fallback) and the
+// sm-dp+ + matching id pair (manual install path).
+const ActivationCode: React.FC<{ code: string }> = ({ code }) => {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — user can still long-press to copy */
+    }
+  };
+  return (
+    <details className="rounded-2xl bg-white border border-ink-100 group">
+      <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between text-xs font-semibold text-ink-700 hover:text-ink-900">
+        <span>Activation code (for manual install)</span>
+        <span className="text-ink-400 group-open:rotate-180 transition">⌄</span>
+      </summary>
+      <div className="px-4 pb-3 -mt-1">
+        <code className="block break-all rounded-lg bg-ink-50 border border-ink-100 px-3 py-2 font-mono text-[11px] text-ink-900">
+          {code}
+        </code>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-700 hover:text-ink-900">
+          {copied ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              Copy code
+            </>
+          )}
+        </button>
+      </div>
+    </details>
+  );
+};
+
+// Renders Airalo's numeric step map sorted by key. The parent gates
+// rendering on non-empty steps so the empty-list fallback lives upstream.
+const StepsList: React.FC<{ steps: Record<string, string> }> = ({ steps }) => {
+  const entries = Object.entries(steps).sort(([a], [b]) => Number(a) - Number(b));
   return (
     <ol className="space-y-2.5">
       {entries.map(([n, text]) => (
@@ -317,26 +458,72 @@ const StepsList: React.FC<{ steps: Record<string, string> | undefined }> = ({ st
   );
 };
 
-const FallbackSteps: React.FC = () => (
-  <ol className="space-y-2.5 text-sm text-ink-700">
-    <li className="flex gap-3">
-      <span className="flex-shrink-0 grid place-items-center w-6 h-6 rounded-full bg-ink-900 text-white text-xs font-bold">1</span>
-      <span>Open Settings → Cellular / Mobile Data.</span>
-    </li>
-    <li className="flex gap-3">
-      <span className="flex-shrink-0 grid place-items-center w-6 h-6 rounded-full bg-ink-900 text-white text-xs font-bold">2</span>
-      <span>Tap "Add eSIM" or "Add cellular plan".</span>
-    </li>
-    <li className="flex gap-3">
-      <span className="flex-shrink-0 grid place-items-center w-6 h-6 rounded-full bg-ink-900 text-white text-xs font-bold">3</span>
-      <span>Scan the QR code on the left.</span>
-    </li>
-    <li className="flex gap-3">
-      <span className="flex-shrink-0 grid place-items-center w-6 h-6 rounded-full bg-ink-900 text-white text-xs font-bold">4</span>
-      <span>When you arrive at your destination, enable data roaming on the new plan.</span>
-    </li>
-  </ol>
-);
+// Used when Airalo's localised payload is missing OR when their steps
+// map for the selected method is empty. We hand-roll iPhone vs Android
+// variants per method so a customer who lands on Manual or Network
+// setup never sees an empty pane.
+const FALLBACK_STEPS: Record<Platform, Record<Method, string[]>> = {
+  ios: {
+    qr: [
+      'Open Settings → Cellular (or Mobile Data).',
+      'Tap "Add eSIM" → "Use QR Code".',
+      "Scan the QR code on the left with your phone's camera.",
+      'Label the new plan, e.g. "Travel eSIM".',
+      'After landing, enable Data Roaming on this plan.',
+    ],
+    manual: [
+      'Open Settings → Cellular → Add eSIM → Enter Details Manually.',
+      'Tap "Show activation code" on the left and copy it.',
+      'Paste it as the SM-DP+ address + activation code.',
+      'Confirm the plan details, then label it.',
+      'Enable Data Roaming when you arrive.',
+    ],
+    apn: [
+      'Settings → Cellular → choose the travel eSIM line.',
+      'Tap "Cellular Data Network".',
+      'Enter the APN value shown below in the APN field.',
+      'Toggle the line on and enable Data Roaming.',
+    ],
+  },
+  android: {
+    qr: [
+      'Open Settings → Network & Internet → SIMs (or Mobile Network).',
+      'Tap "Add eSIM" or "Download a SIM instead".',
+      "Scan the QR code on the left with your phone's camera.",
+      'Confirm the plan and give it a label.',
+      'Enable Roaming on the new plan after you land.',
+    ],
+    manual: [
+      'Settings → Network & Internet → SIMs → Add eSIM.',
+      'Choose "Enter manually" (label varies by manufacturer).',
+      'Paste the activation code shown on the left.',
+      'Confirm and label the plan.',
+      'Enable Roaming on this line when abroad.',
+    ],
+    apn: [
+      'Settings → Network & Internet → SIMs → choose the travel eSIM.',
+      'Tap "Access Point Names" → "+" to add a new APN.',
+      'Use the APN value shown below; leave other fields blank.',
+      'Save → set the new APN as active.',
+    ],
+  },
+};
+
+const FallbackSteps: React.FC<{ platform: Platform; method: Method }> = ({ platform, method }) => {
+  const list = FALLBACK_STEPS[platform][method];
+  return (
+    <ol className="space-y-2.5 text-sm text-ink-700">
+      {list.map((text, i) => (
+        <li key={i} className="flex gap-3">
+          <span className="flex-shrink-0 grid place-items-center w-6 h-6 rounded-full bg-ink-900 text-white text-xs font-bold">
+            {i + 1}
+          </span>
+          <span className="leading-snug">{text}</span>
+        </li>
+      ))}
+    </ol>
+  );
+};
 
 // ── Helpers ───────────────────────────────────────────────────
 const stepsFor = (
@@ -360,18 +547,3 @@ const fmtMb = (mb: number): string => {
   return `${Math.round(mb)} MB`;
 };
 
-interface Sim {
-  qrcode?: string;
-  qrcode_url?: string;
-  iccid?: string;
-}
-const extractSims = (raw: unknown): Sim[] => {
-  const node = raw as Record<string, unknown> | undefined;
-  if (!node) return [];
-  const direct = (node.sims ?? node.data) as Sim[] | { sims?: Sim[] } | undefined;
-  if (Array.isArray(direct)) return direct;
-  if (direct && typeof direct === 'object' && 'sims' in direct && Array.isArray(direct.sims)) {
-    return direct.sims;
-  }
-  return [];
-};

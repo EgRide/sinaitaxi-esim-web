@@ -55,6 +55,10 @@ export interface OrderDetail {
   quantity: number;
   currency: string;
   retailPrice: number;
+  /** ISO timestamp — used by the post-checkout page to tell active
+   *  checkout (show "Confirming payment…") from history view (show
+   *  "Loading your eSIM…"). */
+  createdAt: string;
   fulfilledAt: string | null;
   package: CustomerPackage;
   airalo: unknown;
@@ -76,10 +80,34 @@ export interface DeviceInstructions {
   installation_manual: InstallationSteps;
   network_setup: InstallationSteps;
 }
+// Returned by `/v1/orders/:id/install`. The API normalises Airalo's
+// post-purchase payload into a richer shape than what Airalo returns
+// directly: in addition to forwarding their localised step list, we
+// server-render the activation QR ourselves (base64 PNG inlined in
+// `qrCode`), surface the raw LPA activation string for manual install,
+// and extract the iOS 17.4+ universal-link install URL when present.
 export interface InstallInstructions {
   iccid: string;
   language: string;
-  data: {
+  /**
+   * `data:image/png;base64,…` server-rendered from the LPA activation
+   * string. Null if the order snapshot didn't carry a usable LPA — fall
+   * back to `qrCodeUrl` then to FallbackSteps.
+   */
+  qrCode: string | null;
+  /** Airalo-hosted PNG URL. Backup for `qrCode` if our LPA parse missed. */
+  qrCodeUrl: string | null;
+  /** Raw LPA activation string e.g. `LPA:1$smdp.example.com$abcdef`. */
+  lpa: string | null;
+  smdpAddress: string | null;
+  matchingId: string | null;
+  /** iOS 17.4+ one-tap install link. Tap on iPhone to install with zero scans. */
+  appleInstallUrl: string | null;
+  /**
+   * Airalo's localised instructions payload, forwarded as-is. Shape
+   * matches `getSimInstructions` from the SDK; absent if Airalo errored.
+   */
+  instructions: {
     data?: {
       instructions: {
         language: string;
@@ -87,7 +115,7 @@ export interface InstallInstructions {
         android: DeviceInstructions[];
       };
     };
-  };
+  } | null;
 }
 
 export interface UsageSnapshot {

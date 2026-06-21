@@ -18,3 +18,4 @@ out
 
 # Vercel build output
 .vercel/
+.vercel
