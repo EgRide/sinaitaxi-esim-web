@@ -42,10 +42,12 @@ export default function TermsPage() {
           <p>
             By placing an order on esim.sinaitaxi.com (the "Site"),
             you ("you", "Customer") agree to these Terms of
-            Service ("Terms") with Sinai Taxi ("Sinai Taxi", "we",
-            "us"), registered at 71-75 Shelton Street, Covent
-            Garden, London WC2H 9JQ, United Kingdom. If you don't
-            agree, don't place an order.
+            Service ("Terms") with Sinai Taxi Ltd ("Sinai Taxi",
+            "we", "us"), a company registered in England and Wales
+            under company number 14825809, with its registered
+            office at 71-75 Shelton Street, Covent Garden, London
+            WC2H 9JQ, United Kingdom. If you don't agree, don't
+            place an order.
           </p>
           <p>
             We don't require you to create an account, so there's
@@ -369,7 +371,8 @@ export default function TermsPage() {
 
         <Section id="contact" title="16. Contact">
           <p>
-            Sinai Taxi<br />
+            Sinai Taxi Ltd<br />
+            Company number 14825809 (England &amp; Wales)<br />
             71-75 Shelton Street, Covent Garden<br />
             London WC2H 9JQ, United Kingdom
           </p>

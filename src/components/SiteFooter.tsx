@@ -51,9 +51,17 @@ export const SiteFooter: React.FC = () => (
         />
       </div>
 
-      <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-        <span>© {new Date().getFullYear()} Sinai Taxi. All rights reserved.</span>
-        <span>Built in 2026 with Next.js & Stripe.</span>
+      <div className="mt-12 pt-8 border-t border-white/10 flex flex-col gap-3 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span>© {new Date().getFullYear()} Sinai Taxi Ltd. All rights reserved.</span>
+          <span>Built in 2026 with Next.js &amp; Stripe.</span>
+        </div>
+        <p className="text-ink-400 leading-relaxed">
+          Sinai Taxi Ltd — registered in England &amp; Wales,
+          company number 14825809. Registered office: 71-75
+          Shelton Street, Covent Garden, London WC2H 9JQ, United
+          Kingdom.
+        </p>
       </div>
     </div>
   </footer>

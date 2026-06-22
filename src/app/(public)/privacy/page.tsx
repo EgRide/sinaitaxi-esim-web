@@ -267,11 +267,12 @@ export default function PrivacyPage() {
 
         <Section id="transfers" title="8. International transfers">
           <p>
-            Sinai Taxi is based in the United Kingdom. Our backend
-            runs on Railway servers in the European Union; our
-            website runs on Vercel's global CDN; our payment
-            processor (Stripe) and network partner (Airalo) operate
-            internationally with appropriate safeguards.
+            Sinai Taxi Ltd is incorporated in England and Wales
+            (company number 14825809). Our backend runs on Railway
+            servers in the European Union; our website runs on
+            Vercel's global CDN; our payment processor (Stripe) and
+            network partner (Airalo) operate internationally with
+            appropriate safeguards.
           </p>
           <p>
             Where data crosses borders into jurisdictions not
@@ -332,7 +333,8 @@ export default function PrivacyPage() {
 
         <Section id="contact" title="12. Contact us">
           <p>
-            Sinai Taxi<br />
+            Sinai Taxi Ltd<br />
+            Company number 14825809 (England &amp; Wales)<br />
             71-75 Shelton Street, Covent Garden<br />
             London WC2H 9JQ, United Kingdom
           </p>

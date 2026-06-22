@@ -232,7 +232,8 @@ export default function RefundPolicyPage() {
             For all refund or support requests:
           </p>
           <p>
-            Sinai Taxi<br />
+            Sinai Taxi Ltd<br />
+            Company number 14825809 (England &amp; Wales)<br />
             71-75 Shelton Street, Covent Garden<br />
             London WC2H 9JQ, United Kingdom<br />
             Email: <a href="mailto:sales@sinaitaxi.com">sales@sinaitaxi.com</a><br />
