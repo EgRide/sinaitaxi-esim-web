@@ -143,22 +143,25 @@ export default function TermsPage() {
 
         <Section id="refunds" title="6. Refunds & cancellations">
           <p>
-            <strong>Full refunds — eligible cases.</strong>
+            Refunds are governed by our separate{' '}
+            <a href="/refund-policy">Refund Policy</a>, which is
+            incorporated into these Terms by reference. The headline
+            rules are below; the policy page has the full detail.
+          </p>
+          <p>
+            <strong>Eligible for refund.</strong>
           </p>
           <ul>
             <li>
               The eSIM failed to provision after a successful
-              payment (you'll see "fulfillment failed" on your
+              payment (you&apos;ll see "fulfillment failed" on your
               receipt) — automatic, within 5 business days.
             </li>
             <li>
-              The eSIM was never installed on any device and is
-              requested within 7 days of purchase.
-            </li>
-            <li>
-              The eSIM was installed but never activated, and the
-              fault lies with our network partner (e.g. invalid
-              QR code, network outage at the destination).
+              You opened a support case for a technical fault on our
+              network partner&apos;s side, and the case was not
+              resolved within <strong>10 days</strong> of your first
+              report.
             </li>
           </ul>
 
@@ -167,32 +170,41 @@ export default function TermsPage() {
           </p>
           <ul>
             <li>
-              The eSIM has been successfully activated and used.
+              Accidental purchase — wrong country, wrong validity,
+              or wrong data size.
             </li>
             <li>
-              You bought the wrong country or the wrong plan and
-              the eSIM has been installed.
+              Unused data on an installed eSIM. Once the eSIM has
+              been installed on a device it is treated as consumed.
             </li>
             <li>
-              Your phone turned out not to support eSIM (use the
-              "Check compatibility" tool before buying).
+              Your phone turned out not to support eSIM, or is
+              carrier-locked.
             </li>
             <li>
               You under-estimated your data usage. Top-ups are
               available from your receipt page.
             </li>
             <li>
-              The fair-usage policy on an Unlimited plan kicked in
-              and throttled your speed — the policy is disclosed on
-              every Unlimited plan card before purchase.
+              Fair-usage throttling on an Unlimited plan after the
+              disclosed threshold was reached.
             </li>
           </ul>
+          <p>
+            This policy mirrors our upstream network partner
+            (Airalo). We cannot honour a claim Airalo would not
+            honour, because we pay the wholesale cost regardless of
+            whether you use the eSIM.
+          </p>
           <p>
             To request a refund, email{' '}
             <a href="mailto:sales@sinaitaxi.com">sales@sinaitaxi.com</a>
             {' '}with your order reference. Approved refunds are
             issued to the original payment method within 5–10
-            business days.
+            business days. See the{' '}
+            <a href="/refund-policy">Refund Policy</a> page for the
+            full procedure, examples, and statutory consumer-rights
+            notes.
           </p>
         </Section>
 

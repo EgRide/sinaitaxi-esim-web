@@ -35,7 +35,7 @@ Sinai Taxi eSIM is a customer-facing eSIM marketplace operated by Sinai Taxi (si
 - **Compatibility**: any phone with eSIM support — iPhone XS or later, Pixel 3 or later, Galaxy S20 or later, plus 500+ other models (full list at /destinations/[any-country] → "Check compatibility")
 - **Top-up**: every eSIM can be topped up with more data without removing or reinstalling
 - **Payment**: Stripe (cards, Apple Pay, Google Pay)
-- **Refund policy**: full refund if the eSIM fails to activate. Used eSIMs and wrong-country purchases are non-refundable. Full terms at /terms
+- **Refund policy**: full refund if the eSIM fails to provision, or if an unresolved technical fault remains open beyond 10 days. Installed eSIMs, unused data, and accidental/wrong-country purchases are non-refundable (aligned with Airalo partner-network policy). Full terms at /refund-policy
 
 ## Browse
 
@@ -64,6 +64,7 @@ Sinai Taxi eSIM is a customer-facing eSIM marketplace operated by Sinai Taxi (si
 
 - [Privacy policy](${SITE}/privacy) — GDPR-aware. We don't sell data and we don't run advertising
 - [Terms of service](${SITE}/terms) — Egyptian governing law with EU consumer carve-outs
+- [Refund policy](${SITE}/refund-policy) — narrow refund window aligned with Airalo partner-network policy; 10-day support escalation for technical faults
 
 ## Optional
 

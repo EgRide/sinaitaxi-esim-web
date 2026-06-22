@@ -11,6 +11,7 @@ import { Database, Clock, ChevronRight, ArrowLeft, ShieldCheck, Lock } from 'luc
 import { api, type TopupPackage } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { fmtPrice } from '@/lib/price';
+import { PolicyAgreement } from '@/app/(public)/destinations/[code]/CheckoutForm';
 
 interface Props {
   orderId: string;
@@ -33,6 +34,9 @@ export const TopupPicker: React.FC<Props> = ({ orderId, packages }) => {
   const [topupId, setTopupId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Same agreement gate as the main checkout — the customer must
+  // accept Terms + Refund Policy before we hit /v1/topup-checkout.
+  const [agreed, setAgreed] = useState(false);
 
   // Order by price ascending — feels right for upsell context.
   const sorted = useMemo(
@@ -42,6 +46,10 @@ export const TopupPicker: React.FC<Props> = ({ orderId, packages }) => {
 
   const onChoose = async () => {
     if (!selectedId) return;
+    if (!agreed) {
+      setError('Please accept the Terms of Service and Refund Policy to continue.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -122,10 +130,12 @@ export const TopupPicker: React.FC<Props> = ({ orderId, packages }) => {
         <p className="text-xs text-red-700 bg-red-50 rounded-2xl px-4 py-3">{error}</p>
       ) : null}
 
+      <PolicyAgreement agreed={agreed} onChange={setAgreed} />
+
       <button
         onClick={onChoose}
-        disabled={!selectedId || busy}
-        className="w-full rounded-2xl bg-ink-900 text-white font-semibold py-3.5 hover:bg-ink-800 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-wait">
+        disabled={!selectedId || busy || !agreed}
+        className="w-full rounded-2xl bg-ink-900 text-white font-semibold py-3.5 hover:bg-ink-800 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed">
         {busy ? 'Preparing…' : 'Continue to payment'}
       </button>
     </div>

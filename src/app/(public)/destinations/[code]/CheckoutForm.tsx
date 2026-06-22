@@ -54,10 +54,19 @@ export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext, selectedCo
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Customer must tick the policy box before we let them spend
+  // money. We pass `agreed` into the Stripe step so the same
+  // gate applies on the Pay button too — agreement is a single
+  // checkout-wide checkbox the customer ticks once.
+  const [agreed, setAgreed] = useState(false);
 
   const onStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!agreed) {
+      setError('Please accept the Terms of Service and Refund Policy to continue.');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -143,10 +152,12 @@ export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext, selectedCo
         </Link>
       </div>
 
+      <PolicyAgreement agreed={agreed} onChange={setAgreed} />
+
       <button
         type="submit"
-        disabled={busy}
-        className={cn('btn-primary !w-full !py-3.5 disabled:bg-ink-300')}>
+        disabled={busy || !agreed}
+        className={cn('btn-primary !w-full !py-3.5 disabled:bg-ink-300 disabled:cursor-not-allowed')}>
         {busy ? 'Preparing…' : (
           <>
             Continue · {fmtPrice(pkg.retailPrice, pkg.currency)}
@@ -168,6 +179,38 @@ export const CheckoutForm: React.FC<Props> = ({ pkg, user, loginNext, selectedCo
     </form>
   );
 };
+
+// Single source of truth for the policy checkbox copy. Used in
+// both checkout flows (destinations + top-ups) — keep the wording
+// here so the legal text stays consistent across the funnel.
+export const PolicyAgreement: React.FC<{ agreed: boolean; onChange: (v: boolean) => void }> = ({ agreed, onChange }) => (
+  <label className="flex items-start gap-3 rounded-2xl border border-ink-100 bg-white px-4 py-3 cursor-pointer hover:border-ink-200 transition">
+    <input
+      type="checkbox"
+      checked={agreed}
+      onChange={(e) => onChange(e.target.checked)}
+      className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500 focus:ring-2 cursor-pointer flex-shrink-0"
+    />
+    <span className="text-xs leading-relaxed text-ink-700">
+      I have read and agree to the{' '}
+      <Link
+        href="/terms"
+        target="_blank"
+        className="font-semibold text-brand-600 hover:text-brand-700 underline-offset-2 hover:underline">
+        Terms of Service
+      </Link>
+      {' '}and{' '}
+      <Link
+        href="/refund-policy"
+        target="_blank"
+        className="font-semibold text-brand-600 hover:text-brand-700 underline-offset-2 hover:underline">
+        Refund Policy
+      </Link>
+      . I understand that <strong>installed eSIMs and unused data are non-refundable</strong>,
+      and that refunds apply only to provisioning failures or unresolved technical faults.
+    </span>
+  </label>
+);
 
 const PaymentStep: React.FC<{ orderId: string; pkg: CustomerPackage }> = ({ orderId, pkg }) => {
   const stripe = useStripe();

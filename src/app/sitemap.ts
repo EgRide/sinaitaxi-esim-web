@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE}/install-esim`,   changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE}/privacy`,        changeFrequency: 'yearly',  priority: 0.3 },
     { url: `${SITE}/terms`,          changeFrequency: 'yearly',  priority: 0.3 },
+    { url: `${SITE}/refund-policy`,  changeFrequency: 'yearly',  priority: 0.3 },
   ];
 
   // Per-country destination pages. Catalogue rarely changes,

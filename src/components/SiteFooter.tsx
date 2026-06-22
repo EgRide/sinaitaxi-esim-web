@@ -46,6 +46,7 @@ export const SiteFooter: React.FC = () => (
             { label: 'Support',          href: 'mailto:sales@sinaitaxi.com' },
             { label: 'Privacy',          href: '/privacy' },
             { label: 'Terms',            href: '/terms' },
+            { label: 'Refunds',          href: '/refund-policy' },
           ]}
         />
       </div>
