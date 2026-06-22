@@ -42,9 +42,10 @@ export default function TermsPage() {
           <p>
             By placing an order on esim.sinaitaxi.com (the "Site"),
             you ("you", "Customer") agree to these Terms of
-            Service ("Terms") with Sinai Taxi Sole Proprietorship
-            LLC ("Sinai Taxi", "we", "us"). If you don't agree,
-            don't place an order.
+            Service ("Terms") with Sinai Taxi ("Sinai Taxi", "we",
+            "us"), registered at 71-75 Shelton Street, Covent
+            Garden, London WC2H 9JQ, United Kingdom. If you don't
+            agree, don't place an order.
           </p>
           <p>
             We don't require you to create an account, so there's
@@ -128,10 +129,11 @@ export default function TermsPage() {
             shown at the moment you confirm payment.
           </p>
           <p>
-            <strong>Taxes.</strong> Sinai Taxi is registered as a
-            small enterprise in Egypt and does not collect VAT.
-            Depending on where you live, you may be responsible
-            for declaring the purchase to your local tax authority.
+            <strong>Taxes.</strong> Sinai Taxi is not currently
+            VAT-registered, so VAT is not collected on the prices
+            shown. Depending on where you live, you may be
+            responsible for declaring the purchase to your local
+            tax authority.
           </p>
           <p>
             <strong>Payment methods.</strong> We accept all major
@@ -353,11 +355,10 @@ export default function TermsPage() {
 
         <Section id="governing-law" title="15. Governing law & disputes">
           <p>
-            These Terms are governed by the laws of the Arab
-            Republic of Egypt. Any dispute arising out of or
-            relating to these Terms or the service shall be
-            submitted to the exclusive jurisdiction of the
-            competent courts of South Sinai Governorate, Egypt.
+            These Terms are governed by the laws of England and
+            Wales. Any dispute arising out of or relating to these
+            Terms or the service shall be submitted to the exclusive
+            jurisdiction of the courts of England and Wales.
           </p>
           <p>
             If you are an EU/EEA consumer, this clause does not
@@ -368,8 +369,9 @@ export default function TermsPage() {
 
         <Section id="contact" title="16. Contact">
           <p>
-            Sinai Taxi Sole Proprietorship LLC<br />
-            South Sinai Governorate, Egypt
+            Sinai Taxi<br />
+            71-75 Shelton Street, Covent Garden<br />
+            London WC2H 9JQ, United Kingdom
           </p>
           <p>
             Email: <a href="mailto:sales@sinaitaxi.com">sales@sinaitaxi.com</a><br />

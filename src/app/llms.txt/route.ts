@@ -63,7 +63,7 @@ Sinai Taxi eSIM is a customer-facing eSIM marketplace operated by Sinai Taxi (si
 ## Legal
 
 - [Privacy policy](${SITE}/privacy) — GDPR-aware. We don't sell data and we don't run advertising
-- [Terms of service](${SITE}/terms) — Egyptian governing law with EU consumer carve-outs
+- [Terms of service](${SITE}/terms) — English law governing, with EU consumer carve-outs
 - [Refund policy](${SITE}/refund-policy) — narrow refund window aligned with Airalo partner-network policy; 10-day support escalation for technical faults
 
 ## Optional

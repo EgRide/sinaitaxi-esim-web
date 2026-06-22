@@ -200,9 +200,8 @@ export default function PrivacyPage() {
         <Section id="retention" title="6. Data retention">
           <ul>
             <li>
-              <strong>Order records:</strong> retained for 7 years
-              for tax and accounting purposes (mandatory under
-              Egyptian commercial law).
+              <strong>Order records:</strong> retained for 6 years
+              for tax and accounting purposes (UK HMRC requirement).
             </li>
             <li>
               <strong>Server access logs:</strong> retained for 30
@@ -268,10 +267,10 @@ export default function PrivacyPage() {
 
         <Section id="transfers" title="8. International transfers">
           <p>
-            Sinai Taxi is based in Egypt. Our backend runs on
-            Railway servers in the European Union; our website
-            runs on Vercel's global CDN; our payment processor
-            (Stripe) and network partner (Airalo) operate
+            Sinai Taxi is based in the United Kingdom. Our backend
+            runs on Railway servers in the European Union; our
+            website runs on Vercel's global CDN; our payment
+            processor (Stripe) and network partner (Airalo) operate
             internationally with appropriate safeguards.
           </p>
           <p>
@@ -333,8 +332,9 @@ export default function PrivacyPage() {
 
         <Section id="contact" title="12. Contact us">
           <p>
-            Sinai Taxi Sole Proprietorship LLC<br />
-            South Sinai Governorate, Egypt
+            Sinai Taxi<br />
+            71-75 Shelton Street, Covent Garden<br />
+            London WC2H 9JQ, United Kingdom
           </p>
           <p>
             Email: <a href="mailto:sales@sinaitaxi.com">sales@sinaitaxi.com</a><br />

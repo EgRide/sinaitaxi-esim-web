@@ -232,8 +232,9 @@ export default function RefundPolicyPage() {
             For all refund or support requests:
           </p>
           <p>
-            Sinai Taxi Sole Proprietorship LLC<br />
-            South Sinai Governorate, Egypt<br />
+            Sinai Taxi<br />
+            71-75 Shelton Street, Covent Garden<br />
+            London WC2H 9JQ, United Kingdom<br />
             Email: <a href="mailto:sales@sinaitaxi.com">sales@sinaitaxi.com</a><br />
             WhatsApp: <a href="https://wa.me/441908380111" target="_blank" rel="noreferrer">+44 1908 380111</a><br />
             Website: <a href="https://esim.sinaitaxi.com">esim.sinaitaxi.com</a>
